@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 4 of 6. A fixed budget of 300 labels, a pool of 2,000 real Fashion-MNIST images and a holdout of 1,000 never touched. Seven rungs, from the majority class to uncertainty and diversity sampling, trained and scored in your browser, plus the cheap-labels rung that reports a worse number.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="The label budget bench - learn computer vision with phoebe">
+<meta property="og:description" content="Session 4 of 6. 300 labels, seven ways to spend them, every model trained in your browser. Uncertainty sampling gains 1.8 points; random luck alone moves 2.0.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/courses/04-the-label-budget-bench.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The label budget bench - learn computer vision with phoebe">
+<meta name="twitter:description" content="Session 4 of 6. Which 300 labels are worth paying for, computed on real images in your browser.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 4 · The label budget bench - learn computer vision with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-computer-vision-with-phoebe</a> / Session 4 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Computer Vision Foundations with Phoebe · Session 4 of 6</div>
+    <h1>The label budget <span class="accent">bench</span></h1>
+    <p class="sub">Images are cheap. Labels are not: every one is a person looking at a picture and writing down what it is. So the real design question for a first vision feature is rarely "which model?" and usually "which images do we pay someone to label, and how many?" Tonight a bench answers it with real numbers. Same 2,000 unlabelled images, same 1,000 holdout images that nobody ever picks, same budget of 300 labels, seven ways to spend it. Every model is trained and scored in your browser while you watch, including the one built on cheap labels, which is the point of the evening.</p>
+    <div class="chip-row">
+      <span class="chip level">🟠 Applied</span>
+      <span class="chip audience">Analysts, data scientists, builders scoping labels</span>
+      <span class="chip audience">Browser bench, numpy</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:3">3-14 · How the bench is built</span>
+      <span class="a3" style="flex:6">14-40 · The bench, rung by rung</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Where we start</h2>
+    </div>
+    <p class="lede">Session 3 trained a first classifier and found where it fails: shirts, pullovers and coats get mixed up, trousers and boots almost never. Corvane now has to decide how to spend its first labelling money (constructed Corvane example). The vendor will label any image it is sent. The question is which ones to send. A bench is the honest way to answer: hold everything still except the one thing being compared, and let the numbers come out of real computation rather than out of a vendor slide.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+      <span class="pill">★ Build-along = run the bench yourself</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> Seven numbers you computed yourself, the size of the luck that sits under all of them, a clear view of when "smart" label picking helps and when it buys the wrong images, the cost of cheap labels in accuracy points, and page 4 of Corvane's vision plan: a labelling budget plan with a stop rule.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers what the bench holds still</span>
+      <h2>One pool, one holdout, one budget</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">The pool is 2,000 real Fashion-MNIST training images with their labels hidden. The holdout is 1,000 of the official test images, labelled, locked away, and never picked by any strategy. Every rung buys exactly 300 labels from the pool, trains the same model for the same 150 steps, and is scored on the same holdout. Only two things change between rungs: the features, and which 300 images get labelled.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The bench as a pipeline. A pile of 2,000 unlabelled pool images feeds a picker, which can be random, uncertainty or diversity. The picker sends 300 images to be labelled. A softmax regression model trains on their features for 150 fixed steps. It is scored on a locked holdout of 1,000 test images that no picker can reach. The output is holdout accuracy.">
+        <defs>
+          <filter id="s4aSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="53" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s4aHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s4aAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s4aH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s4aL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s4aS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s4aB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s4aV { font: 800 18px Inter, sans-serif; fill: #6A0055; }
+          .s4aA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s4aN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s4aH" x="40" y="26">WHAT EVERY RUNG SHARES, AND THE TWO THINGS IT CHANGES</text>
+
+        <g filter="url(#s4aSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- the pool pile -->
+          <path d="M40 200 C40 120 70 80 120 76 C170 80 200 120 200 200 Z" fill="url(#s4aHc)"/>
+          <!-- picker -->
+          <rect x="240" y="96" width="140" height="92" rx="10" transform="rotate(-0.6 310 142)" fill="#E6F8F9" stroke="#005961"/>
+          <path d="M204 150 L232 146" marker-end="url(#s4aAr)"/>
+          <!-- 300 labelled thumbnails -->
+          <rect x="420" y="104" width="26" height="26" rx="3" transform="rotate(-3 433 117)" fill="#FFFFFF"/>
+          <rect x="452" y="108" width="26" height="26" rx="3" transform="rotate(2 465 121)" fill="#FFFFFF"/>
+          <rect x="420" y="142" width="26" height="26" rx="3" transform="rotate(2 433 155)" fill="#FFFFFF"/>
+          <rect x="452" y="146" width="26" height="26" rx="3" transform="rotate(-2 465 159)" fill="#FFFFFF"/>
+          <path d="M384 142 L412 140" marker-end="url(#s4aAr)"/>
+          <!-- model -->
+          <rect x="530" y="96" width="140" height="92" rx="10" transform="rotate(0.5 600 142)" fill="#FCEEF8" stroke="#AD008B"/>
+          <path d="M484 142 L522 142" marker-end="url(#s4aAr)"/>
+          <!-- holdout vault -->
+          <rect x="530" y="222" width="140" height="62" rx="8" transform="rotate(-0.4 600 253)" fill="#FFFFFF" stroke="#6A0055"/>
+          <path d="M600 222 L600 196" marker-end="url(#s4aAr)"/>
+          <!-- accuracy dial -->
+          <circle cx="770" cy="142" r="44" fill="#FFFFFF"/>
+          <path d="M674 142 L718 142" marker-end="url(#s4aAr)"/>
+          <path d="M770 142 L796 120" stroke="#AD008B"/>
+        </g>
+
+        <text class="s4aL" x="120" y="226" text-anchor="middle">pool: 2,000 images</text>
+        <text class="s4aS" x="120" y="242" text-anchor="middle">labels hidden</text>
+        <text class="s4aB" x="310" y="122" text-anchor="middle">THE PICKER</text>
+        <text class="s4aS" x="310" y="142" text-anchor="middle">random</text>
+        <text class="s4aS" x="310" y="158" text-anchor="middle">uncertainty</text>
+        <text class="s4aS" x="310" y="174" text-anchor="middle">diversity</text>
+        <text class="s4aA" x="310" y="206" text-anchor="middle">CHANGES</text>
+        <text class="s4aL" x="450" y="92" text-anchor="middle">300 labels</text>
+        <text class="s4aL" x="600" y="122" text-anchor="middle">softmax regression</text>
+        <text class="s4aS" x="600" y="140" text-anchor="middle">on pixels, hand-made</text>
+        <text class="s4aS" x="600" y="156" text-anchor="middle">or convolution features</text>
+        <text class="s4aA" x="600" y="176" text-anchor="middle">CHANGES</text>
+        <text class="s4aL" x="600" y="248" text-anchor="middle">holdout: 1,000</text>
+        <text class="s4aS" x="600" y="266" text-anchor="middle">locked, never picked</text>
+        <text class="s4aV" x="770" y="208" text-anchor="middle">accuracy</text>
+        <text class="s4aS" x="770" y="226" text-anchor="middle">on the 1,000</text>
+
+        <text class="s4aN" x="40" y="304">Fixed for every rung: the pool, the holdout, 300 labels, 150 training steps, seed 7.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the holdout sits below the model and outside the picker's reach, which is what makes the numbers comparable</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The seven rungs, and what each one changes<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>Rungs 1 to 4 change the features</strong>, with the same 300 randomly chosen images: the majority class (no features at all), the 196 raw pixel values, 33 hand-made measurements (row and column profiles, amount of ink, bounding box, left-right symmetry), and 288 fixed convolution features (eight 3 x 3 edge kernels, ReLU, 2 x 2 max pool, exactly the operations of session 2).</p>
+        <p><strong>Rungs 5 and 6 change which images get labelled</strong>, on the convolution features. Uncertainty sampling starts from the same first 50 random images, trains, and then buys the 50 the model is least sure about, five more times. Diversity sampling starts from the same 50 and keeps buying the image farthest from everything already bought.</p>
+        <p><strong>Rung 7 changes the labels themselves.</strong> Same 300 images as rung 4, but three labels in ten are written as the look-alike class a hurried labeller would pick: shirt for T-shirt, coat for pullover, sneaker for sandal. That rule is modelled, and the widget says so; the training and scoring that follow are real.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why a simple model, and what that does and does not prove<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The bench trains softmax regression: one weight per feature per class, ten classes, gradient descent from zero for 150 steps. It runs in about a second in a browser, it is deterministic, and an independent numpy script reproduces every number it prints to the last image. A deep network would be more accurate and would take minutes per rung on a laptop with no GPU.</p>
+        <p>What that buys you: a fair comparison of features and of label strategies, all else equal. What it does not buy: the absolute accuracy a production model would reach. For scale, the Fashion-MNIST paper's own table reports 84.2% for scikit-learn logistic regression and 89.7% for the best support vector machine, both trained on all 60,000 images at full size. The bench uses 300 labels on 14 x 14 images, so its ceiling with all 2,000 pool labels is 82.5%. Compare rungs with each other, never with a leaderboard.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The vendor demo that was really a seed.</strong> A labelling platform shows a chart where its "smart selection" beats random by two points at the same budget. It is one run. Nobody re-drew the random sample. On tonight's bench, five random draws of 300 labels span 75.6% to 77.6%, a two-point spread from luck alone. A gain the size of the luck is not yet a gain; it is a reason to run it again.</p>
+    </div>
+  </section>
+
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along · the bench</span>
+      <h2>Seven rungs, trained in front of you</h2>
+      <span class="tag demo">★ 26 min · the main event</span>
+    </div>
+    <p class="lede">Work down the rungs in order. For each one read the verdict line first, then accuracy, then the worst class and the biggest confusion, then the strip of images it paid to label. Say out loud what changed before moving on. Rung 7 is the break button: it is the shortcut every budget meeting proposes, and the bench reports what it costs.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How to drive the bench: pick a rung, read four readouts in order, then press the two buttons under it. One draws accuracy against labels bought for three strategies; the other re-draws the random 300 five times to show how much is luck.">
+        <defs>
+          <filter id="s4dSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="71" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <marker id="s4dAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s4dH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s4dL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s4dS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s4dA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s4dN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s4dH" x="40" y="26">THE READING ORDER</text>
+
+        <g filter="url(#s4dSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="40" y="50" width="150" height="70" rx="10" transform="rotate(-0.6 115 85)" fill="#FCEEF8"/>
+          <rect x="230" y="50" width="150" height="70" rx="10" transform="rotate(0.5 305 85)" fill="#FFFFFF"/>
+          <rect x="420" y="50" width="150" height="70" rx="10" transform="rotate(-0.4 495 85)" fill="#FFFFFF"/>
+          <rect x="610" y="50" width="230" height="70" rx="10" transform="rotate(0.4 725 85)" fill="#FFFFFF"/>
+          <path d="M194 85 L222 85" marker-end="url(#s4dAr)"/>
+          <path d="M384 85 L412 85" marker-end="url(#s4dAr)"/>
+          <path d="M574 85 L602 85" marker-end="url(#s4dAr)"/>
+          <rect x="230" y="152" width="250" height="56" rx="10" transform="rotate(-0.4 355 180)" fill="#E6F8F9" stroke="#005961"/>
+          <rect x="520" y="152" width="250" height="56" rx="10" transform="rotate(0.4 645 180)" fill="#E6F8F9" stroke="#005961" stroke-dasharray="6 4"/>
+        </g>
+
+        <text class="s4dA" x="56" y="76">1 · PICK A RUNG</text>
+        <text class="s4dS" x="56" y="96">start at 4, the</text>
+        <text class="s4dS" x="56" y="110">reference rung</text>
+        <text class="s4dA" x="246" y="76">2 · VERDICT</text>
+        <text class="s4dS" x="246" y="96">points against</text>
+        <text class="s4dS" x="246" y="110">rung 4, same budget</text>
+        <text class="s4dA" x="436" y="76">3 · WORST CLASS</text>
+        <text class="s4dS" x="436" y="96">and the biggest</text>
+        <text class="s4dS" x="436" y="110">confusion pair</text>
+        <text class="s4dA" x="626" y="76">4 · THE STRIP</text>
+        <text class="s4dS" x="626" y="96">the last 40 images bought,</text>
+        <text class="s4dS" x="626" y="110">and labels bought per class</text>
+        <text class="s4dL" x="246" y="176">draw the curve</text>
+        <text class="s4dS" x="246" y="194">50 to 500 labels, 3 strategies</text>
+        <text class="s4dL" x="536" y="176">five random seeds</text>
+        <text class="s4dS" x="536" y="194">how big is luck at 300?</text>
+
+        <text class="s4dN" x="40" y="236">Every readout is tagged measured or modelled. Read the tag before the number.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the two buttons under the bench answer the question every rung raises: is this difference real?</figcaption>
+    </figure>
+
+    <div id="cvf-bench"></div>
+
+    <div class="steps">
+      <div class="step">
+        <p><strong>Rungs 1 to 4: features, same 300 random labels.</strong> Write down the four accuracies. Majority is 9.8%: the 300 random labels hold 43 Shirts, the most of any class, so it answers Shirt every time. Raw pixels reach 74.8%. Hand-made features drop to 69.4%: 33 measurements threw away more than they summarised. Fixed convolution features reach 75.8%.</p>
+        <div class="prompt-box good"><span class="label">★ Step 1 · record the feature rungs</span>rung  features              holdout accuracy
+1     majority class        9.8%
+2     raw pixels (196)      74.8%
+3     hand-made (33)        69.4%
+4     convolution (288)     75.8%   &lt;- the reference rung</div>
+      </div>
+      <div class="step">
+        <p><strong>Rungs 5 and 6: which 300.</strong> Uncertainty sampling reaches 77.6%, 1.8 points over rung 4. Look at its strip: it spent its budget on Pullovers, Coats and Shirts, the classes session 3 found confused, and only 11 labels on Trousers, which the model already gets right. Diversity sampling falls to 72.7%. Its strip is full of Sandals and Bags: it bought 80 Sandals and 60 Bags, the odd shapes far from everything else, and 7 Trousers.</p>
+        <div class="prompt-box good"><span class="label">★ Step 2 · labels bought per class, at 300</span>class         random  uncertainty  diversity
+T-shirt       29      27           37
+Trouser       26      11           7
+Pullover      27      44           25
+Dress         20      35           15
+Coat          31      48           8
+Sandal        27      22           80
+Shirt         43      47           29
+Sneaker       40      22           11
+Bag           27      24           60
+Ankle boot    30      20           28</div>
+      </div>
+      <div class="step">
+        <p><strong>Press "Re-draw the random 300 with five seeds".</strong> Rung 4 comes back as 75.8%, 75.6%, 76.1%, 77.6% and 77.6%. The spread is 2.0 points. Uncertainty's gain of 1.8 sits inside it. On this bench, at this budget, one run cannot tell you that uncertainty sampling helps.</p>
+        <div class="prompt-box good"><span class="label">★ Step 3 · the luck line</span>random 300, seeds 7 to 11:  75.8  75.6  76.1  77.6  77.6
+spread from luck alone:      2.0 points
+uncertainty gain at 300:     1.8 points   (inside the spread)</div>
+      </div>
+      <div class="step">
+        <p><strong>Press "Draw accuracy against labels".</strong> 21 models train, one at a time. Read the curve where the lines cross: uncertainty is <em>behind</em> random at 100 and 150 labels, because a model trained on 50 images does not yet know what it is unsure about. It pulls ahead from 200, and at 400 labels it leads by 4.9 points, well outside the luck line.</p>
+        <div class="prompt-box good"><span class="label">★ Step 4 · the curve, correct of 1,000</span>labels        50   100   150   200   300   400   500
+random       629   724   733   753   758   757   778
+uncertainty  629   701   719   767   776   806   812
+diversity    629   699   713   715   727   734   752</div>
+      </div>
+      <div class="step">
+        <p><strong>Rung 7: press the break button.</strong> The same 300 images as rung 4, with 99 of the 300 labels written as the look-alike class. Accuracy falls to 48.7%, 27.1 points below clean labels. All ten per-class errors rise; Sneaker goes from 16.2% wrong to 61.9%, because the rule writes Sneakers as Sandals and Ankle boots as Sneakers, and the model learned the labeller's habits.</p>
+        <div class="prompt-box good"><span class="label">★ Step 5 · the price of cheap labels</span>same 300 images, clean labels      75.8%
+same 300 images, 99 labels wrong   48.7%   (modelled noise, real training)
+cost                               27.1 points</div>
+      </div>
+      <div class="step">
+        <p><strong>Write page 4 of Corvane's vision plan.</strong> Budgets in labels, not money. The stop rule is the part most plans leave out.</p>
+        <div class="prompt-box good"><span class="label">★ Step 6 · labelling budget plan (constructed Corvane example)</span>holdout:      1,000 images, labelled first, by two people, never picked
+round 1:      50 random images, labelled and checked
+rounds 2-6:   50 at a time by smallest margin, retrain between rounds
+audit:        10% of every batch labelled twice; report agreement
+stop rule:    stop buying when the last 100 labels gain less than the
+              spread of five random seeds at the same budget
+keep:         the strategy, seeds and every bought image id, in the plan</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>Drive it from the console if you prefer.</strong> <code>CVF_LIVE.bench.setRung("uncertainty")</code> selects a rung; <code>CVF_LIVE.bench.result("noisy").correct</code> returns the count behind the readout. The numbers are the same ones the page quotes.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers uncertainty and diversity sampling</span>
+      <h2>Reading the ladder: features first, then which labels</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">The bench's numbers, written down so they can be argued with after class. The first lesson is in rungs 2 to 4: good features moved accuracy as much as clever picking did. The second is in the dotted lines: the luck from one random draw is as large as the gain from the cleverest picker.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Holdout accuracy for each rung at 300 labels: majority 9.8 percent, raw pixels 74.8, hand-made features 69.4, convolution features 75.8, uncertainty sampling 77.6, diversity sampling 72.7, cheap labels 48.7, and all 2,000 pool labels 82.5. Two dotted lines mark the range of five random seeds, 75.6 to 77.6 percent.">
+        <defs>
+          <filter id="s4bSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="59" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s4bHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+        </defs>
+        <style>
+          .s4bH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s4bL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s4bS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s4bB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s4bR { font: 800 12px Inter, sans-serif; fill: #991B1B; }
+          .s4bV { font: 800 12px Inter, sans-serif; fill: #6A0055; }
+          .s4bN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s4bH" x="40" y="26">HOLDOUT ACCURACY AT 300 LABELS</text>
+        <text class="s4bB" x="560" y="40">luck: five seeds, 75.6 to 77.6</text>
+
+        <g filter="url(#s4bSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="260" y="56" width="52" height="22" rx="3" fill="#FFFFFF"/>
+          <rect x="260" y="90" width="399" height="22" rx="3" fill="#FCEEF8"/>
+          <rect x="260" y="124" width="370" height="22" rx="3" fill="#FCEEF8"/>
+          <rect x="260" y="158" width="404" height="22" rx="3" fill="url(#s4bHc)"/>
+          <rect x="260" y="192" width="414" height="22" rx="3" fill="#5FD3DC" stroke="#005961"/>
+          <rect x="260" y="226" width="388" height="22" rx="3" fill="#FCEEF8"/>
+          <rect x="260" y="260" width="260" height="22" rx="3" fill="#FEF2F2" stroke="#991B1B"/>
+          <rect x="260" y="294" width="440" height="22" rx="3" fill="#FFFFFF" stroke="#D6C4CF"/>
+        </g>
+        <path d="M663 48 L663 284" stroke="#005961" stroke-width="1.5" stroke-dasharray="3 4" fill="none"/>
+        <path d="M674 48 L674 284" stroke="#005961" stroke-width="1.5" stroke-dasharray="3 4" fill="none"/>
+
+        <text class="s4bL" x="245" y="72" text-anchor="end">1 · majority class</text>
+        <text class="s4bL" x="245" y="106" text-anchor="end">2 · raw pixels</text>
+        <text class="s4bL" x="245" y="140" text-anchor="end">3 · hand-made features</text>
+        <text class="s4bL" x="245" y="174" text-anchor="end">4 · convolution features</text>
+        <text class="s4bL" x="245" y="208" text-anchor="end">5 · + uncertainty</text>
+        <text class="s4bL" x="245" y="242" text-anchor="end">6 · + diversity</text>
+        <text class="s4bR" x="245" y="276" text-anchor="end">7 · cheap labels</text>
+        <text class="s4bS" x="245" y="310" text-anchor="end">ceiling: all 2,000 labels</text>
+
+        <text class="s4bV" x="740" y="72">9.8%</text>
+        <text class="s4bV" x="740" y="106">74.8%</text>
+        <text class="s4bV" x="740" y="140">69.4%</text>
+        <text class="s4bV" x="740" y="174">75.8%</text>
+        <text class="s4bV" x="740" y="208">77.6%</text>
+        <text class="s4bV" x="740" y="242">72.7%</text>
+        <text class="s4bR" x="740" y="276">48.7%</text>
+        <text class="s4bV" x="740" y="310">82.5%</text>
+        <text class="s4bS" x="800" y="208">+1.8</text>
+        <text class="s4bS" x="800" y="242">-3.1</text>
+        <text class="s4bS" x="800" y="276">-27.1</text>
+
+        <text class="s4bN" x="40" y="340">Bars run from 0 to 90 percent. Differences are against rung 4, at the same 300 labels.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - only the cheap-labels rung moves further than the luck between two dotted lines</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Uncertainty sampling: label where the model hesitates<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Settles's survey of active learning names three ways to measure "unsure": least confident (the top class probability is low), <strong>margin</strong> (the top two classes are close), and entropy (the probability is spread across many classes). The bench uses margin: after each round it scores every unlabelled pool image by the gap between its two most likely classes and buys the 50 with the smallest gap.</p>
+        <p>It works by concentrating labels where the classes overlap. On the bench that means Pullover, Coat and Shirt, the three garments the confusion table keeps mixing up. It has a cold start: with only 50 labels the model's sense of "unsure" is itself unreliable, and the curve shows uncertainty behind random at 100 and 150 labels. And the survey itself carries a warning: a set bought this way "is inherently tied to the model that was used to generate it". Change the model later and the labels you bought for the old one may not be the ones the new one needed.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Diversity sampling, and why it bought 80 sandals<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Diversity sampling picks images that cover the feature space instead of images near a decision boundary. The bench uses k-centre greedy, the core of Sener and Savarese's core-set method: repeatedly buy the pool image farthest from everything already bought. Their paper reports that it "significantly outperforms existing approaches in image classification experiments by a large margin" for convolutional networks.</p>
+        <p>On this bench it lost 3.1 points to random. The strip shows why. In 288 edge features, sandals and bags are the odd shapes: a sandal is mostly gaps and straps, a bag a large block with a handle, and each one is far from every other image. Farthest-first keeps finding them, and spends 140 of 300 labels on two classes that are easy anyway. Settles names this failure directly: uncertainty and committee methods are prone to "querying outliers", and density-weighted methods exist to stop it. The result is real; what it shows is that "diversity" depends entirely on the distance you measure it in, and a fixed-feature space is not the learned space the core-set paper used.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Two well-run studies, two answers.</strong> Beck and colleagues (2021) report active learning roughly 2x to 4x more label-efficient than random sampling when data augmentation is used. Munjal and colleagues (2022) re-ran the popular methods under identical settings and found "an inconsistent gain over random sampling baseline", shrinking to little or nothing with strong regularisation. Both are careful work. Session 6 lays the disagreement out properly; tonight's bench is one more data point, and it sits on both sides depending on the budget you read it at.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers label noise and label errors</span>
+      <h2>Cheap labels: the break button</h2>
+      <span class="tag concept">4 min live</span>
+    </div>
+    <p class="lede">Every budget meeting eventually proposes the same shortcut: a faster, cheaper labelling pass, maybe with more labels for the money. The bench prices the quality half of that offer. Same images, same model, same holdout; only the labels change, and the accuracy loses 27.1 points.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two rows with the same 300 images and the same model. Top row: clean labels, holdout accuracy 75.8 percent. Bottom row: 99 of the 300 labels written as the look-alike class, such as Shirt for T-shirt, Coat for Pullover and Sneaker for Sandal; holdout accuracy 48.7 percent.">
+        <defs>
+          <filter id="s4cSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="61" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s4cHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s4cAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s4cH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s4cL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s4cS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s4cR { font: 800 11px Inter, sans-serif; fill: #991B1B; }
+          .s4cV { font: 800 20px Inter, sans-serif; fill: #6A0055; }
+          .s4cX { font: 800 20px Inter, sans-serif; fill: #991B1B; }
+          .s4cN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s4cH" x="40" y="26">SAME IMAGES, SAME MODEL, DIFFERENT LABELS</text>
+
+        <g filter="url(#s4cSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="40" y="56" width="130" height="80" rx="8" transform="rotate(-0.6 105 96)" fill="url(#s4cHc)"/>
+          <rect x="40" y="168" width="130" height="80" rx="8" transform="rotate(0.5 105 208)" fill="url(#s4cHc)"/>
+          <rect x="210" y="66" width="250" height="60" rx="8" transform="rotate(0.4 335 96)" fill="#FFFFFF"/>
+          <rect x="210" y="178" width="250" height="60" rx="8" transform="rotate(-0.4 335 208)" fill="#FEF2F2" stroke="#FCA5A5"/>
+          <path d="M174 96 L202 96" marker-end="url(#s4cAr)"/>
+          <path d="M174 208 L202 208" marker-end="url(#s4cAr)"/>
+          <rect x="500" y="66" width="130" height="60" rx="8" transform="rotate(-0.5 565 96)" fill="#FCEEF8" stroke="#AD008B"/>
+          <rect x="500" y="178" width="130" height="60" rx="8" transform="rotate(0.5 565 208)" fill="#FCEEF8" stroke="#AD008B"/>
+          <path d="M464 96 L492 96" marker-end="url(#s4cAr)"/>
+          <path d="M464 208 L492 208" marker-end="url(#s4cAr)"/>
+          <path d="M634 96 L676 96" marker-end="url(#s4cAr)"/>
+          <path d="M634 208 L676 208" marker-end="url(#s4cAr)"/>
+        </g>
+
+        <text class="s4cL" x="105" y="152" text-anchor="middle">300 images</text>
+        <text class="s4cL" x="105" y="264" text-anchor="middle">the same 300</text>
+        <text class="s4cL" x="226" y="92">clean labels</text>
+        <text class="s4cS" x="226" y="110">as Zalando's experts wrote them</text>
+        <text class="s4cR" x="226" y="202">99 of 300 wrong</text>
+        <text class="s4cS" x="226" y="220">Shirt for T-shirt, Coat for Pullover</text>
+        <text class="s4cL" x="565" y="100" text-anchor="middle">same model</text>
+        <text class="s4cL" x="565" y="212" text-anchor="middle">same model</text>
+        <text class="s4cV" x="688" y="104">75.8%</text>
+        <text class="s4cX" x="688" y="216">48.7%</text>
+        <text class="s4cS" x="776" y="104">rung 4</text>
+        <text class="s4cS" x="776" y="216">rung 7</text>
+
+        <text class="s4cN" x="40" y="288">The noise rule is modelled and stated on the widget. Everything after it is computed.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - a third of the labels wrong costs 27.1 points, more than every feature and picking choice combined</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>How common are wrong labels, really?<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The bench's three-in-ten is deliberately harsh, to make the cost visible. Real benchmarks are better than that and still not clean. Northcutt, Athalye and Mueller (2021) checked the test sets of ten widely used benchmarks and found "an average of at least 3.3% errors across the 10 datasets", with at least 6% of the ImageNet validation set mislabelled. MNIST's test set was the cleanest they checked, 15 errors in 10,000. Fashion-MNIST was not one of the ten, so no error rate for it is claimed here.</p>
+        <p>Their sharper finding is about test sets, not training sets: with corrected test labels, "lower capacity models may be practically more useful", because the bigger models had partly learned the errors. Corvane's holdout is the most valuable 1,000 labels it will ever buy. That is why the plan has it labelled first, by two people.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What a labelling quote should state besides price<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A price per label without an error rate is half a quote. Ask for the agreement rate on a doubly labelled sample, the class pairs where disagreement concentrates, and what happens to an image the labeller is unsure about (a skip option is worth paying for). Fashion-MNIST's own labels came from the product's silhouette code, assigned by in-house fashion experts and reviewed by a separate team: two layers, which is exactly the structure to ask a vendor to describe.</p>
+        <p>Label cost per frame, audit sampling and its bounds are taught in depth, for driving data, in <a href="https://phoebefu6.github.io/learn-autonomous-driving-with-phoebe/courses/p2-labels-cost-by-the-frame.html">Autonomous Driving, session p2 ↗</a>. The general rule carries over: audit a sample, report the agreement, and price the rework before choosing the cheaper vendor.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The quote that doubled the labels.</strong> A team is offered twice as many labels for the same money by a vendor that skips the review pass (constructed Corvane example). On the bench, the clean 300 reach 75.8% and the curve says clean labels keep paying up to 500. The noisy 300 sit at 48.7%. Before accepting "more labels for the money", measure the agreement rate on fifty doubly labelled images. It takes an afternoon and it is the number the decision turns on.</p>
+    </div>
+  </section>
+
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 5</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Run all seven rungs and both buttons,</strong> and copy the numbers into your own table. Each one should match the page; if a number differs, reload and note the browser.</li>
+      <li><strong>Find the budget where uncertainty sampling first clears the luck line.</strong> Use the curve and the five-seed spread. Write one sentence on what that means for Corvane's first round.</li>
+      <li><strong>Re-run the bench's margin rule in numpy</strong> with the margin rule from the cheat sheet on any classifier you have that outputs probabilities, and list the ten images it would buy first.</li>
+      <li><strong>Finish the labelling budget plan</strong> with your own stop rule and audit rate, and add it to Corvane's vision plan as page 4.</li>
+    </ol>
+  </section>
+
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 4 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · At 300 labels, uncertainty sampling scores 77.6% against 75.8% for random labels. Can you tell Corvane that uncertainty sampling helps?</p>
+      <button class="qopt" type="button">A · Yes, 1.8 points is a clear win</button>
+      <button class="qopt" type="button">B · Not from one run: five random draws of 300 span 75.6% to 77.6%, so a 1.8-point gain sits inside the luck; it needs repeated seeds or a larger budget, where at 400 labels it leads by 4.9</button>
+      <button class="qopt" type="button">C · No, uncertainty sampling never helps</button>
+      <button class="qopt" type="button">D · Yes, because the holdout has 1,000 images</button>
+      <p class="qwhy">The comparison that matters is the gain against the spread of the baseline, not against one draw of it. The bench shows both, and the curve shows the gain growing past the spread as the budget grows.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · Diversity sampling bought 80 Sandals, 60 Bags and 7 Trousers, and scored 72.7%, below random. What went wrong?</p>
+      <button class="qopt" type="button">A · The holdout was too small</button>
+      <button class="qopt" type="button">B · Diversity sampling only works on colour images</button>
+      <button class="qopt" type="button">C · Farthest-first keeps finding the odd shapes that sit far from everything in the feature space, so it spent labels on outliers from easy classes; distance is only as good as the features it is measured in</button>
+      <button class="qopt" type="button">D · The random seed was unlucky for diversity only</button>
+      <p class="qwhy">Settles's survey warns that query strategies are prone to "querying outliers". The core-set method measures distance in a learned feature space; the bench measures it in fixed edge features, and the strip shows what that buys.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · A vendor offers labels at half the price with no review pass. What should the decision turn on?</p>
+      <button class="qopt" type="button">A · The measured agreement rate on a doubly labelled sample: on the bench, 99 wrong labels in 300 cost 27.1 points, more than every feature and picking choice combined</button>
+      <button class="qopt" type="button">B · Only the price per label</button>
+      <button class="qopt" type="button">C · Whether the vendor uses active learning</button>
+      <button class="qopt" type="button">D · The number of labellers the vendor employs</button>
+      <p class="qwhy">Label quality is the largest lever on the bench. A price without an error rate cannot be compared with another price, and the audit that measures it costs an afternoon.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Every accuracy, count and curve point on the bench</span><span class="note">Computed in your browser from real Fashion-MNIST images (Xiao, Rasul, Vollgraf 2017, MIT licence); reproduced value by value by an independent numpy reference before any page quoted them</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Uncertainty sampling, its three measures, the outlier warning and the tied-to-the-model caveat</span><span class="note">Settles, Active Learning Literature Survey, UW-Madison TR 1648, sections 3.1, 3.6 and 4.1, read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Diversity sampling as core-set selection, and the claim it beats existing methods</span><span class="note">Sener and Savarese, ICLR 2018, arXiv:1708.00489, abstract read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Active learning gains: 2x to 4x versus inconsistent</span><span class="note">Beck et al. 2021, arXiv:2106.15324; Munjal et al., CVPR 2022, arXiv:2002.09564; abstracts read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Label errors in benchmark test sets</span><span class="note">Northcutt, Athalye, Mueller, NeurIPS 2021 Datasets and Benchmarks, arXiv:2103.14749; Fashion-MNIST was not among their ten datasets</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The cheap-labels rung</span><span class="note">Modelled: a stated rule writes three labels in ten as the look-alike class; the training and scoring are real</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Every fact on this page, and its verification tier, is recorded in the course's source map.</p>
+  </section>
+
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 4 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Hold everything still</b><span>Same pool, same locked holdout, same budget, same model. Change one thing.</span></div>
+      <div class="cheat-item"><b>Measure the luck first</b><span>Five random seeds at 300 labels: 75.6% to 77.6%. A gain inside that is not yet a gain.</span></div>
+      <div class="cheat-item"><b>Margin sampling</b><span>margin = p_top1 - p_top2; buy the smallest 50, retrain, repeat. Cold at 50 labels.</span></div>
+      <div class="cheat-item"><b>Diversity needs the right distance</b><span>Farthest-first in fixed features bought 80 Sandals. Outliers are not information.</span></div>
+      <div class="cheat-item"><b>Features matter as much as picking</b><span>Hand-made 69.4%, raw 74.8%, convolution 75.8%, at the same 300 labels.</span></div>
+      <div class="cheat-item"><b>Price the noise</b><span>99 wrong labels in 300: 48.7%, down 27.1. Ask every vendor for an agreement rate.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>A good holdout number is the start of evaluation, not the end. Session 5 trains the model on all 2,000 labels, 82.5% on the holdout, and then changes the holdout the way a real camera would: a dimmer lamp, items arriving the other way round, a quarter turn. Turned a quarter, accuracy falls to 5.1% while the model reports 83.7% confidence.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 4 of 6 · learn-computer-vision-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="03-a-first-classifier.html">← Prev: A first classifier</a> &nbsp;·&nbsp; <a href="05-where-it-fails.html">Next: Where it fails →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/cvf-sample.js?v=1"></script>
+<script src="../assets/cvf-live.js?v=2"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

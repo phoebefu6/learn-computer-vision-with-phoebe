@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Six sessions on computer vision foundations: images as arrays you can compute on, convolution on real pixels, a first classifier and what it confuses, a label budget bench run in your browser, failure slices and camera shift, and scoping a vision feature. Real Fashion-MNIST images, free, by Phoebe Fu.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Learn Computer Vision Foundations with Phoebe">
+<meta property="og:description" content="Images as arrays you can compute on. Run real convolutions on real pixels in your browser, train a small classifier, and spend a fixed labelling budget where it buys the most accuracy.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Learn Computer Vision Foundations with Phoebe">
+<meta name="twitter:description" content="300 labels, seven ways to spend them, every model trained in your browser on real images.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Learn Computer Vision Foundations with Phoebe</title>
+<link rel="stylesheet" href="assets/style.css?v=2">
+<style>
+
+  .stats-row { display: flex; gap: 2.4rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .stat b { display: block; font-size: 2.1rem; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .72rem; opacity: 1; text-transform: uppercase; letter-spacing: .09em; font-weight: 600; }
+
+  .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .course-card {
+    border: 1px solid var(--hairline);
+    border-top: 4px solid var(--diff, var(--indigo));
+    border-radius: var(--radius);
+    padding: 1.2rem 1.3rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    text-decoration: none;
+    color: var(--ink);
+    background: #fff;
+    transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+    position: relative;
+  }
+  .course-card:hover { border-color: var(--indigo-soft); border-top-color: var(--diff, var(--indigo)); box-shadow: 0 8px 28px rgba(var(--shadow-rgb),.16); transform: translateY(-3px); }
+  .course-card .cicon { font-size: 1.7rem; line-height: 1; }
+  .course-card .cnum { font-size: .72rem; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .1em; }
+  .course-card h3 { font-size: 1.05rem; font-weight: 800; line-height: 1.3; }
+  .course-card p { font-size: .85rem; color: var(--muted); flex: 1; }
+  .course-card .meta { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+  .diff-legend { display: flex; gap: 1rem; margin-top: 1.6rem; font-size: .74rem; color: var(--muted); font-weight: 600; flex-wrap: wrap; }
+  .diff-legend i { display: inline-block; width: .85rem; height: .35rem; border-radius: 999px; margin-right: .35rem; vertical-align: middle; }
+
+  .paths { margin-top: 2.6rem; }
+  .paths h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .3rem; }
+  .paths .plede { color: var(--muted); font-size: .92rem; margin-bottom: .8rem; }
+  .path { display: flex; gap: .55rem; align-items: center; padding: .75rem 0; border-bottom: .5px solid var(--hairline); flex-wrap: wrap; }
+  .path:last-child { border-bottom: none; }
+  .path b { min-width: 15.5rem; font-size: .9rem; }
+  .path .pstep { background: var(--indigo-50); color: var(--indigo-deep); border-radius: 999px; padding: .16rem .68rem; font-weight: 700; font-size: .8rem; text-decoration: none; transition: all .12s ease; }
+  .path .pstep:hover { background: var(--indigo); color: #fff; }
+  .path .parr { color: var(--muted); font-weight: 700; }
+
+  .mm-section { margin-top: 1.6rem; }
+  .mm-section h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .2rem; }
+  .mm-section .mm-lede { color: var(--muted); font-size: .92rem; margin-bottom: .4rem; }
+  .mm-wrap { border: 1px solid var(--hairline); border-radius: var(--radius); background: linear-gradient(180deg,#fff,var(--indigo-50)); padding: .6rem; overflow-x: auto; }
+  .mm-svg { width: 100%; height: auto; display: block; max-width: 60rem; margin: 0 auto; min-width: 34rem; }
+  .mm-link { cursor: pointer; text-decoration: none; }
+  .mm-node rect { transition: opacity .15s ease, filter .15s ease; }
+  .mm-node text { pointer-events: none; }
+  .mm-link:hover .mm-node rect { filter: brightness(1.06); }
+  .mm-edge { transition: opacity .15s ease; }
+
+  .not-this { border: 1px solid var(--hairline); border-left: 4px solid var(--clay); border-radius: var(--radius); background: #fff; padding: 1.1rem 1.3rem; margin-top: 1.2rem; }
+  .not-this h3 { font-size: .95rem; font-weight: 800; margin-bottom: .5rem; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn with Phoebe · Data Science</div>
+    <h1>Learn <span class="accent">Computer Vision</span> Foundations with Phoebe</h1>
+    <p class="sub">A camera hands a model a grid of numbers, and everything a vision system does is arithmetic on that grid. Six sessions make the arithmetic visible: read real images as arrays, slide real kernels across real pixels, train a small classifier and find what it confuses, then spend a fixed labelling budget on a bench that trains every model in your browser. The question running through all six: what is the model actually looking at, and which labels are worth paying for? The running case is Corvane, a constructed recycling plant adding one camera to one sorting line.</p>
+    <div class="stats-row">
+      <div class="stat"><b data-count="6">6</b><span>sessions</span></div>
+      <div class="stat"><b data-count="3000">3,000</b><span>real images on the bench</span></div>
+      <div class="stat"><b data-count="300">300</b><span>labels to spend</span></div>
+      <div class="stat"><b data-count="7">7</b><span>rungs, trained live</span></div>
+      <div class="stat"><b data-count="45">45</b><span>min per session</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section">
+    <div class="paths" style="margin-top:0">
+      <h2>The six sessions 🎯 <span style="font-size:.85rem;font-weight:600;color:var(--muted)">· from a grid of numbers to a signed scope note</span></h2>
+      <p class="plede">The teaching images are <strong>Fashion-MNIST</strong>: 70,000 real catalogue photos of clothing from Zalando Research, 28 x 28 pixels, ten classes, MIT licence. They stand in for "textiles on the line" at Corvane, and every page says so: they are garments on a clean background, not waste photos. Each session adds one page to <strong>Corvane's vision plan</strong>.</p>
+    </div>
+
+    <div class="course-grid">
+      <a class="course-card" href="courses/01-an-image-is-a-grid-of-numbers.html" style="--diff:#34D399">
+        <span class="cicon">🔢</span>
+        <span class="cnum">Session 1 · foundations</span>
+        <h3>An image is a grid of numbers</h3>
+        <p>Pixels, channels and resolution; what 0 means; brightness, contrast and flips as array operations, and the uint8 bug that makes a brightened image darker. Build-along: Corvane's image card.</p>
+        <span class="meta"><span class="pill amber">▶ Start here</span></span>
+      </a>
+      <a class="course-card" href="courses/02-slide-a-small-window.html" style="--diff:#FBBF24">
+        <span class="cicon">🪟</span>
+        <span class="cnum">Session 2 · core</span>
+        <h3>Slide a small window: convolution</h3>
+        <p>A kernel is nine weights, multiplied and summed at every position. Edges, blur and sharpen computed on real pixels; stride, padding and pooling; and why a learned kernel beats a hand-made one.</p>
+        <span class="meta"><span class="pill">kernels on real pixels</span></span>
+      </a>
+      <a class="course-card" href="courses/03-a-first-classifier.html" style="--diff:#FBBF24">
+        <span class="cicon">🧺</span>
+        <span class="cnum">Session 3 · core</span>
+        <h3>A first classifier and what it confuses</h3>
+        <p>Raw pixels against hand-made features against a convolution feature layer, on the same labels. The confusion table, per-class error, and why shirts, pullovers and coats are the hard part.</p>
+        <span class="meta"><span class="pill">baseline + error table</span></span>
+      </a>
+      <a class="course-card" href="courses/04-the-label-budget-bench.html" style="--diff:#FB923C">
+        <span class="cicon">🎛️</span>
+        <span class="cnum">Session 4 · bench night</span>
+        <h3>The label budget bench</h3>
+        <p>2,000 unlabelled images, 1,000 locked holdout images, 300 labels. Random, uncertainty and diversity sampling trained in your browser, the luck under all of them, and the cheap-labels rung that costs 27.1 points.</p>
+        <span class="meta"><span class="pill amber">★ the bench</span></span>
+      </a>
+      <a class="course-card" href="courses/05-where-it-fails.html" style="--diff:#FB923C">
+        <span class="cicon">🔦</span>
+        <span class="cnum">Session 5 · applied</span>
+        <h3>Where it fails: slices and shift</h3>
+        <p>Failure slices, a dimmer lamp, a flipped item, a quarter turn, and a model that stays confident while it is wrong. Calibration, and IoU computed on drawn boxes for detection and segmentation.</p>
+        <span class="meta"><span class="pill">shift and calibration</span></span>
+      </a>
+      <a class="course-card" href="courses/06-scope-the-vision-feature.html" style="--diff:#F87171">
+        <span class="cicon">📝</span>
+        <span class="cnum">Session 6 · advanced</span>
+        <h3>Scope the vision feature</h3>
+        <p>Pretrained models and transfer, label cost against model cost, what to ask a vendor, and the open disagreement about active learning. Capstone: Corvane's signed scope note.</p>
+        <span class="meta"><span class="pill amber">🔒 signed scope note</span></span>
+      </a>
+    </div>
+
+    <div class="diff-legend">
+      <span><i style="background:#34D399"></i>foundations</span>
+      <span><i style="background:#FBBF24"></i>core</span>
+      <span><i style="background:#FB923C"></i>applied</span>
+      <span><i style="background:#F87171"></i>advanced</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="paths" style="margin-top:0">
+      <h2>Your passport 🎫</h2>
+      <p class="plede">Clear all three quiz questions in a session and it gets stamped. Six stamps means you can read an image as the array a model receives, say what a convolution does to it, build and diagnose a baseline, spend a labelling budget on purpose, find where a vision model fails, and write the scope note a vision feature should ship with. Stamps live in this browser only.</p>
+    </div>
+    <div class="pp-strip"></div>
+  </section>
+
+  <section class="section">
+    <div class="not-this">
+      <h3>What this is not, so you land in the right place 🧭</h3>
+      <table class="clean">
+        <tr><th>If your question is</th><th>Go here instead</th></tr>
+        <tr><td>How do LeNet, AlexNet and ResNet work, and what does convolution save in parameters?</td><td><a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/courses/04-seeing-and-embedding.html">Deep Learning, session 4 ↗</a></td></tr>
+        <tr><td>How does backpropagation train a network, step by step?</td><td><a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/courses/02-backprop-by-hand.html">Deep Learning, session 2 ↗</a></td></tr>
+        <tr><td>What does a label cost per frame on a driving fleet, and which perception metrics hide failures?</td><td><a href="https://phoebefu6.github.io/learn-autonomous-driving-with-phoebe/courses/p2-labels-cost-by-the-frame.html">Autonomous Driving, session p2 ↗</a></td></tr>
+        <tr><td>How do I find defects and anomalies nobody labelled?</td><td><a href="https://phoebefu6.github.io/learn-anomaly-detection-with-phoebe/">Anomaly Detection ↗</a></td></tr>
+        <tr><td>Who owns a generated image, and how is provenance tracked?</td><td><a href="https://phoebefu6.github.io/learn-ai-media-domain-with-phoebe/courses/b7-images-and-synthetic-media.html">AI in Media, images and synthetic media ↗</a></td></tr>
+        <tr><td><strong>I am moving from tables to images, or I have been asked to scope a vision feature, and I want to know what the model sees and which labels to buy.</strong></td><td><strong>you are in the right place</strong></td></tr>
+      </table>
+      <p style="margin-top:.7rem;font-size:.86rem;color:var(--muted)"><strong>Computer vision as arithmetic and budgets.</strong> What a convolution does to pixels, what a first classifier confuses, which labels are worth paying for and where the model breaks. Network architectures and the training loop are taught in the deep learning sessions and linked from here rather than repeated.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="paths">
+      <h2>Choose your path 🗺️</h2>
+      <p class="plede">Three doors into the same habit: before trusting a vision number, ask what the model received and which labels produced it.</p>
+      <div class="path"><b>📊 I know tables, images are new</b>
+        <a class="pstep" href="courses/01-an-image-is-a-grid-of-numbers.html">1</a><span class="parr">→</span>
+        <a class="pstep" href="courses/02-slide-a-small-window.html">2</a><span class="parr">→</span>
+        <a class="pstep" href="courses/03-a-first-classifier.html">3</a>
+        <span style="font-size:.82rem;color:var(--muted)">the array, the kernel, the first model and its errors</span>
+      </div>
+      <div class="path"><b>💰 I have a labelling budget to spend</b>
+        <a class="pstep" href="courses/03-a-first-classifier.html">3</a><span class="parr">→</span>
+        <a class="pstep" href="courses/04-the-label-budget-bench.html">4</a><span class="parr">→</span>
+        <a class="pstep" href="courses/06-scope-the-vision-feature.html">6</a>
+        <span style="font-size:.82rem;color:var(--muted)">find the confusion, price the labels, write the scope</span>
+      </div>
+      <div class="path"><b>🎯 The whole foundation</b>
+        <a class="pstep" href="courses/01-an-image-is-a-grid-of-numbers.html">1</a><span class="parr">→</span>
+        <a class="pstep" href="courses/02-slide-a-small-window.html">2</a><span class="parr">→</span>
+        <a class="pstep" href="courses/03-a-first-classifier.html">3</a><span class="parr">→</span>
+        <a class="pstep" href="courses/04-the-label-budget-bench.html">4</a><span class="parr">→</span>
+        <a class="pstep" href="courses/05-where-it-fails.html">5</a><span class="parr">→</span>
+        <a class="pstep" href="courses/06-scope-the-vision-feature.html">6</a>
+        <span style="font-size:.82rem;color:var(--muted)">from a grid of numbers to a scope note somebody can sign</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="paths" style="margin-top:0">
+      <h2>What is honest here 🧾</h2>
+      <p class="plede">The images are real and every number about them is computed. The plant is constructed, and where the literature disagrees, the pages say so instead of choosing a side.</p>
+    </div>
+    <table class="clean">
+      <tr><th>Claim</th><th>Status</th></tr>
+      <tr><td>Every pixel count, convolution readout, accuracy, confusion and curve point</td><td><strong>Really computed</strong> in your browser from real Fashion-MNIST images, and reproduced value by value by an independent numpy script before any page quoted them</td></tr>
+      <tr><td>The bench's images</td><td><strong>Real, and shrunk:</strong> 2,000 training and 1,000 official test images, averaged to 14 x 14 and 16 grey levels to fit a web page; the full-size gallery keeps 28 x 28 and 256 levels</td></tr>
+      <tr><td>The cheap-labels rung and the camera shifts</td><td><strong>Modelled:</strong> a stated rule rewrites labels, stated array operations stand in for a lamp or a turned item; the training and scoring after them are real</td></tr>
+      <tr><td>Whether active learning beats random labelling in practice</td><td><strong>Contested,</strong> with published studies on both sides; taught as a disagreement</td></tr>
+      <tr><td>Corvane, its camera, its budgets</td><td><strong>Constructed,</strong> labelled on every page; the images are garments standing in for textiles</td></tr>
+      <tr><td>The model</td><td><strong>Deliberately small:</strong> softmax regression on fixed features, so every rung trains in about a second; no deep network is trained, and the pages compare rungs, never leaderboards</td></tr>
+    </table>
+  </section>
+
+  <section class="section mm-section">
+    <h2>The knowledge map 🧠</h2>
+    <p class="mm-lede">The whole foundation at a glance - hover a session to spotlight its concepts, click any node to jump in.</p>
+    <div class="mm-wrap"><div id="mindmap"></div></div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>learn-computer-vision-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span>Neighbours on the shelf: <a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/">Deep Learning ↗</a> &nbsp;·&nbsp; <a href="https://phoebefu6.github.io/learn-intro-ml-with-phoebe/">Intro to ML ↗</a> &nbsp;·&nbsp; <a href="https://phoebefu6.github.io/learn-model-evaluation-with-phoebe/">Model Evaluation ↗</a></span>
+  </footer>
+
+</main>
+
+<script>
+window.MINDMAP_DATA = {
+  title: "Computer\nVision",
+  centerColor: "#6A0055",
+  sessions: [
+    { label: "An image is a\ngrid of numbers", href: "courses/01-an-image-is-a-grid-of-numbers.html", color: "#34D399",
+      concepts: [
+        { label: "784 numbers, no neighbours", href: "courses/01-an-image-is-a-grid-of-numbers.html" },
+        { label: "Channels are one more axis", href: "courses/01-an-image-is-a-grid-of-numbers.html" },
+        { label: "Widen, add, clip", href: "courses/01-an-image-is-a-grid-of-numbers.html" } ] },
+    { label: "Slide a small\nwindow", href: "courses/02-slide-a-small-window.html", color: "#FBBF24",
+      concepts: [
+        { label: "Nine weights, summed", href: "courses/02-slide-a-small-window.html" },
+        { label: "Stride, padding, pooling", href: "courses/02-slide-a-small-window.html" },
+        { label: "Learned beats hand-made", href: "courses/02-slide-a-small-window.html" } ] },
+    { label: "A first\nclassifier", href: "courses/03-a-first-classifier.html", color: "#FBBF24",
+      concepts: [
+        { label: "Pixels, hand, convolution", href: "courses/03-a-first-classifier.html" },
+        { label: "The confusion table", href: "courses/03-a-first-classifier.html" },
+        { label: "Per-class error", href: "courses/03-a-first-classifier.html" } ] },
+    { label: "The label\nbudget bench", href: "courses/04-the-label-budget-bench.html", color: "#FB923C",
+      concepts: [
+        { label: "Uncertainty vs diversity", href: "courses/04-the-label-budget-bench.html" },
+        { label: "Luck before gains", href: "courses/04-the-label-budget-bench.html" },
+        { label: "The price of cheap labels", href: "courses/04-the-label-budget-bench.html" } ] },
+    { label: "Where it\nfails", href: "courses/05-where-it-fails.html", color: "#FB923C",
+      concepts: [
+        { label: "Failure slices", href: "courses/05-where-it-fails.html" },
+        { label: "Shift and calibration", href: "courses/05-where-it-fails.html" },
+        { label: "IoU on drawn boxes", href: "courses/05-where-it-fails.html" } ] },
+    { label: "Scope the\nvision feature", href: "courses/06-scope-the-vision-feature.html", color: "#F87171",
+      concepts: [
+        { label: "Pretrained and transfer", href: "courses/06-scope-the-vision-feature.html" },
+        { label: "Label cost vs model cost", href: "courses/06-scope-the-vision-feature.html" },
+        { label: "The signed scope note", href: "courses/06-scope-the-vision-feature.html" } ] }
+  ]
+};
+</script>
+<script src="assets/mindmap.js?v=1"></script>
+<script src="assets/app.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 6 of 6. Scope a vision feature before anyone buys a camera: pretrained models and transfer, which lever moves accuracy most, what to ask a vendor, and the published disagreement about whether smart labelling pays. Capstone: a signed scope note.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Scope the vision feature - learn computer vision with phoebe">
+<meta property="og:description" content="Session 6 of 6. On the bench, label quality moved accuracy 27.1 points and clever picking 1.8. Write the scope note that says which lever you are paying for.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/courses/06-scope-the-vision-feature.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Scope the vision feature - learn computer vision with phoebe">
+<meta name="twitter:description" content="Session 6 of 6. Transfer, label cost against model cost, vendor questions, and a scope note somebody signs.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 6 · Scope the vision feature - learn computer vision with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-computer-vision-with-phoebe</a> / Session 6 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Computer Vision Foundations with Phoebe · Session 6 of 6</div>
+    <h1>Scope the vision <span class="accent">feature</span></h1>
+    <p class="sub">Five sessions built the parts: what the model receives, what a convolution does to it, what a first classifier confuses, which labels pay, and where the model breaks. Tonight they become one decision. Most vision features are scoped the wrong way round: a model is chosen, a camera bought, and the labelling budget discovered afterwards. The bench says the order should be reversed, because on real images the quality of the labels moved accuracy further than any model or picking choice. The evening ends with Corvane's scope note, signed.</p>
+    <div class="chip-row">
+      <span class="chip level">🔴 Advanced</span>
+      <span class="chip audience">Builders and leads scoping a vision feature</span>
+      <span class="chip audience">No code required</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-18 · Transfer, levers, the disagreement</span>
+      <span class="a3" style="flex:5">18-40 · Build-along: Corvane's signed scope note</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Where we start</h2>
+    </div>
+    <p class="lede">Corvane has five pages of a vision plan (constructed Corvane example): an image card, a feature choice, a baseline with its error table, a labelling budget, and a set of failure slices. What it does not have is a decision anyone has signed. A scope note is that decision on one page: what the feature must do, on which images, measured how, with which labels, at what point it is switched off, and who owns it. It is the page a vendor, a plant manager and a data scientist can all read and disagree with in writing, before money is spent rather than after.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+      <span class="pill">★ Build-along = write it yourself</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> A clear view of what a pretrained model does and does not buy, a ranking of the levers by how many accuracy points each one moved on real images, the questions to put to a vision vendor, an honest account of the active learning disagreement, and page 6 of Corvane's vision plan: a scope note with a name at the bottom.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers pretrained models and transfer</span>
+      <h2>Start from features someone else learned</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">The bench's convolution features are eight kernels written by hand. A network trained on millions of images learns its own kernels, layer upon layer, and the first layer tends to learn the same kind of thing session 2 wrote by hand: edges at several angles and blobs of colour. That is why starting from someone else's trained network usually beats starting from nothing, and why it is not the whole answer.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A stack of four network layers, from general at the bottom to specific at the top. The bottom layer holds edge and colour-blob detectors like session 2's kernels; higher layers combine them into parts and then into the original task's classes. Transfer keeps the lower layers and retrains the top on Corvane's labels. A side note: the bench's eight hand-made kernels stand in for the bottom layer only.">
+        <defs>
+          <filter id="s6aSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="83" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s6aHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s6aAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s6aH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s6aL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s6aS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s6aB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s6aA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s6aN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s6aH" x="40" y="26">FROM GENERAL TO SPECIFIC, AND WHERE TRANSFER CUTS</text>
+
+        <g filter="url(#s6aSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="60" y="232" width="360" height="50" rx="8" transform="rotate(-0.4 240 257)" fill="url(#s6aHc)"/>
+          <rect x="60" y="170" width="360" height="50" rx="8" transform="rotate(0.4 240 195)" fill="#FCEEF8"/>
+          <rect x="60" y="108" width="360" height="50" rx="8" transform="rotate(-0.3 240 133)" fill="#FCEEF8"/>
+          <rect x="60" y="46" width="360" height="50" rx="8" transform="rotate(0.3 240 71)" fill="#E6F8F9" stroke="#005961"/>
+          <path d="M48 102 L432 102" stroke="#005961" stroke-dasharray="6 4"/>
+          <rect x="540" y="46" width="300" height="70" rx="10" transform="rotate(0.5 690 81)" fill="#FFFFFF" stroke="#005961"/>
+          <rect x="540" y="196" width="300" height="86" rx="10" transform="rotate(-0.5 690 239)" fill="#FFFFFF"/>
+          <path d="M530 90 L440 72" marker-end="url(#s6aAr)"/>
+          <path d="M530 240 L428 258" marker-end="url(#s6aAr)"/>
+        </g>
+
+        <text class="s6aL" x="76" y="262">layer 1: edges at many angles, colour blobs</text>
+        <text class="s6aL" x="76" y="200">layer 2: corners, textures, stripes</text>
+        <text class="s6aL" x="76" y="138">layer 3: parts, a collar, a sole, a strap</text>
+        <text class="s6aB" x="76" y="76">top: the original task's classes</text>
+        <text class="s6aA" x="440" y="94">cut here</text>
+
+        <text class="s6aB" x="556" y="72">retrain only the top</text>
+        <text class="s6aS" x="556" y="92">on Corvane's labelled images; keep</text>
+        <text class="s6aS" x="556" y="106">everything below as it was learned</text>
+        <text class="s6aL" x="556" y="222">the bench's eight kernels</text>
+        <text class="s6aS" x="556" y="242">hand-made Sobel edges, a stand-in</text>
+        <text class="s6aS" x="556" y="258">for layer 1 only; nothing above it</text>
+        <text class="s6aS" x="556" y="274">is learned on the bench</text>
+
+        <text class="s6aN" x="40" y="314">Yosinski et al. 2014: first layers are general across datasets; features become specific by the last layer.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the lower the layer, the more of it carries over to a new task; the cut is a design choice, not a default</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>What the transfer evidence says, and what it does not<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Yosinski, Clune, Bengio and Lipson (2014) measured how features move between tasks. Their abstract reports that first-layer features resemble Gabor filters and colour blobs, are "not specific to a particular dataset or task", and that features must "eventually transition from general to specific by the last layer". Transferability falls as the two tasks drift apart, yet even features from a distant task beat random starting weights, and initialising with transferred features improved generalisation in a way that lasted after fine-tuning.</p>
+        <p>Three practical shapes follow. Use the pretrained network as a <strong>fixed feature extractor</strong> and train only a small classifier on top, the bench's pattern with better features. <strong>Fine-tune the top layers</strong> on your labels. Or <strong>fine-tune everything</strong>, which needs the most labels and the most care. None of them removes the need for labels from your own camera, and none of them fixes the shifts of session 5: a network pretrained on catalogue photos still meets Corvane's lamp for the first time on the belt.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Where the architectures live<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Which pretrained network to start from, how LeNet, AlexNet and ResNet differ, and what a convolution saves in parameters are taught in <a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/courses/04-seeing-and-embedding.html">Deep Learning, session 4 ↗</a>, and how a network trains in <a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/courses/03-the-training-loop.html">session 3 ↗</a> there. For a scope note you need less than that: the name of the starting network, the data it was trained on, its licence, and how far that data is from your camera's images. Write those four lines down; they are the transfer equivalent of session 1's image card.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Fashion-MNIST is itself a distance.</strong> Its images are front-look catalogue thumbnails, trimmed, centred, sharpened and negated by a published pipeline. A model that learned on them has learned clean, centred garments facing one way. Session 5 measured what that costs: flipped left-right, every Sneaker and every Ankle boot on the holdout went wrong. A pretrained network carries the same kind of history in its weights, and its data card is the only place that history is written down.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers label cost against model cost</span>
+      <h2>Which lever moves the number</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Every vision scope meeting argues about the model. The bench measured five levers on the same real images and the same holdout, and the model was not the biggest of them. Read the levers in points of holdout accuracy, and the budget conversation changes order.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Five levers measured on the session 4 bench, in points of holdout accuracy. Label quality: 99 wrong labels in 300 cost 27.1 points. More labels: 300 to 2,000 random labels gained 6.7 points. Features: hand-made to convolution gained 6.4 points at 300 labels. Picking at 400 labels: uncertainty sampling gained 4.9 points. Picking at 300 labels: 1.8 points, inside the 2.0-point spread of random seeds.">
+        <defs>
+          <filter id="s6bSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="89" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s6bHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+        </defs>
+        <style>
+          .s6bH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s6bL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s6bS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s6bB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s6bR { font: 800 12px Inter, sans-serif; fill: #991B1B; }
+          .s6bV { font: 800 12px Inter, sans-serif; fill: #6A0055; }
+          .s6bN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s6bH" x="40" y="26">POINTS OF HOLDOUT ACCURACY EACH LEVER MOVED ON THE BENCH</text>
+
+        <g filter="url(#s6bSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="270" y="54" width="434" height="30" rx="4" fill="#FEF2F2" stroke="#991B1B"/>
+          <rect x="270" y="104" width="107" height="30" rx="4" fill="#FCEEF8"/>
+          <rect x="270" y="154" width="102" height="30" rx="4" fill="url(#s6bHc)"/>
+          <rect x="270" y="204" width="78" height="30" rx="4" fill="#5FD3DC" stroke="#005961"/>
+          <rect x="270" y="254" width="29" height="30" rx="4" fill="#E6F8F9" stroke="#005961"/>
+        </g>
+        <path d="M302 246 L302 292" stroke="#005961" stroke-width="1.5" stroke-dasharray="3 4" fill="none"/>
+
+        <text class="s6bL" x="255" y="74" text-anchor="end">label quality</text>
+        <text class="s6bL" x="255" y="124" text-anchor="end">more labels, 300 to 2,000</text>
+        <text class="s6bL" x="255" y="174" text-anchor="end">features, hand to convolution</text>
+        <text class="s6bL" x="255" y="224" text-anchor="end">picking, at 400 labels</text>
+        <text class="s6bL" x="255" y="274" text-anchor="end">picking, at 300 labels</text>
+
+        <text class="s6bR" x="716" y="74">27.1 lost</text>
+        <text class="s6bV" x="390" y="124">+6.7</text>
+        <text class="s6bV" x="386" y="174">+6.4</text>
+        <text class="s6bV" x="362" y="224">+4.9</text>
+        <text class="s6bV" x="320" y="274">+1.8</text>
+        <text class="s6bB" x="370" y="274">dotted line: luck, 2.0</text>
+        <text class="s6bS" x="716" y="90">99 wrong labels in 300</text>
+
+        <text class="s6bN" x="40" y="318">16 pixels per point. All five measured on the same 1,000 holdout images, session 4.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - protecting label quality is worth more than every other lever on the chart put together</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Reading the levers, and the order to spend in<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>Label quality first.</strong> Losing it cost 27.1 points, so the first money goes to a clean, doubly labelled holdout and an agreement check on every batch. <strong>Then volume and features</strong>, which moved about the same amount on the bench (6.7 and 6.4 points); a pretrained feature extractor is the cheap way to buy the second. <strong>Picking last</strong>: worth 4.9 points at 400 labels and nothing you can distinguish from luck at 300.</p>
+        <p>These are one bench's numbers: small model, 14 x 14 greyscale garments, one seed per strategy. The ranking is the lesson, not the decimals. Your own bench, on your own camera's images, is the only place your own decimals come from, and session 4's widget is a pattern you can copy.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Questions to put to a vision vendor<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Every question below comes from a measurement earlier in the sessions, which is what makes it fair to ask.</p>
+        <ol>
+          <li><strong>Who owns the holdout, and who labelled it?</strong> If the vendor labels and scores on its own test set, the number is its number. (Session 4)</li>
+          <li><strong>What is the agreement rate on doubly labelled images, by class pair?</strong> A price per label without it cannot be compared. (Session 4)</li>
+          <li><strong>What is the accuracy per class, and on which slices?</strong> One overall number hides the confused pairs. (Sessions 3 and 5)</li>
+          <li><strong>What happens under the shifts our line will produce,</strong> and how confident is the model when it is wrong? Ask for calibration, not just accuracy. (Session 5)</li>
+          <li><strong>If labels were chosen by active learning, which model chose them,</strong> and will the deployed model be the same one? (Settles; Lowell et al.)</li>
+          <li><strong>What did the pretrained network learn on,</strong> under what licence, and how far is that from our camera? (Part 1)</li>
+        </ol>
+        <p>Label cost per frame and the sampling bounds of a label audit, for driving data, are in <a href="https://phoebefu6.github.io/learn-autonomous-driving-with-phoebe/courses/p2-labels-cost-by-the-frame.html">Autonomous Driving, session p2 ↗</a>.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The model upgrade that bought nothing.</strong> Corvane's first quote proposes a larger network on the same 300 noisy labels (constructed Corvane example). The bench puts the two choices side by side: the feature lever between raw pixels and convolution was 1.0 point at 300 labels, and the label lever was 27.1. The scope note's job is to make that comparison before the purchase order, not in the post-mortem.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers the active learning disagreement</span>
+      <h2>Does smart labelling pay? The evidence disagrees</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Active learning is the promise that choosing which images to label buys more accuracy per label than choosing at random. Careful researchers have published both answers. The scope note should not pick a side on faith; it should say which side its own measurement landed on, and at what budget.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two columns of published findings with the bench between them. For: Sener and Savarese 2018 report core-set selection outperforms existing approaches by a large margin; Beck and colleagues 2021 report 2x to 4x label efficiency with augmentation. Caution: Settles 2009 notes acquired sets are tied to the model that chose them; Lowell and colleagues 2019 find successor models not consistently better than i.i.d. sampling; Munjal and colleagues 2022 find an inconsistent gain over random. The bench: uncertainty behind random at 100 and 150 labels, inside the luck at 300, ahead by 4.9 points at 400; diversity behind random at every budget past 50 labels.">
+        <defs>
+          <filter id="s6cSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="97" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+        </defs>
+        <style>
+          .s6cH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s6cL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s6cS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s6cB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s6cA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s6cN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s6cH" x="40" y="26">THREE PLACES THE ANSWER COMES FROM</text>
+
+        <g filter="url(#s6cSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="40" y="46" width="250" height="250" rx="10" transform="rotate(-0.4 165 171)" fill="#FCEEF8"/>
+          <rect x="315" y="46" width="250" height="250" rx="10" transform="rotate(0.3 440 171)" fill="#E6F8F9" stroke="#005961"/>
+          <rect x="590" y="46" width="250" height="250" rx="10" transform="rotate(-0.3 715 171)" fill="#FFFFFF"/>
+        </g>
+
+        <text class="s6cA" x="56" y="72">IT PAYS</text>
+        <text class="s6cL" x="56" y="98">Sener and Savarese 2018</text>
+        <text class="s6cS" x="56" y="116">core-set selection beats existing</text>
+        <text class="s6cS" x="56" y="132">methods "by a large margin"</text>
+        <text class="s6cL" x="56" y="166">Beck et al. 2021</text>
+        <text class="s6cS" x="56" y="184">2x to 4x more label-efficient</text>
+        <text class="s6cS" x="56" y="200">than random, with augmentation</text>
+
+        <text class="s6cB" x="331" y="72">THE BENCH, SESSION 4</text>
+        <text class="s6cL" x="331" y="98">uncertainty sampling</text>
+        <text class="s6cS" x="331" y="116">behind random at 100 and 150</text>
+        <text class="s6cS" x="331" y="132">+1.8 at 300, inside 2.0 of luck</text>
+        <text class="s6cS" x="331" y="148">+4.9 at 400</text>
+        <text class="s6cL" x="331" y="182">diversity sampling</text>
+        <text class="s6cS" x="331" y="200">behind random past 50 labels</text>
+        <text class="s6cS" x="331" y="216">bought 80 Sandals, 60 Bags</text>
+        <text class="s6cS" x="331" y="250">one seed, fixed features,</text>
+        <text class="s6cS" x="331" y="266">a small model</text>
+
+        <text class="s6cA" x="606" y="72">HANDLE WITH CARE</text>
+        <text class="s6cL" x="606" y="98">Settles 2009, the survey</text>
+        <text class="s6cS" x="606" y="116">a bought set is tied to the</text>
+        <text class="s6cS" x="606" y="132">model that chose it</text>
+        <text class="s6cL" x="606" y="160">Lowell et al. 2019</text>
+        <text class="s6cS" x="606" y="178">successor models not consistently</text>
+        <text class="s6cS" x="606" y="194">better than i.i.d. sampling</text>
+        <text class="s6cL" x="606" y="222">Munjal et al. 2022</text>
+        <text class="s6cS" x="606" y="240">"an inconsistent gain over</text>
+        <text class="s6cS" x="606" y="256">random sampling baseline"</text>
+
+        <text class="s6cN" x="40" y="322">Each column is careful work. They disagree because they measured different models, budgets and settings.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the bench sits in the middle on purpose: depending on the budget you read it at, it supports either column</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>What each side measured, and why both can be right<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>For.</strong> Sener and Savarese (2018) recast active learning for convolutional networks as core-set selection and report that it "significantly outperforms existing approaches in image classification experiments by a large margin". Beck and colleagues (2021) report active learning roughly 2x to 4x "more label-efficient compared to RS with the use of data augmentation".</p>
+        <p><strong>Caution.</strong> Settles's own survey, the field's standard reference, warns that a set bought by an active learner "is inherently tied to the model that was used to generate it", reports a study where active learning needed more labels than passive learning, and raises "publication bias". Lowell, Lipton and Wallace (2019) found that training a successor model on actively acquired data "does not consistently outperform" training on i.i.d. sampled data. Munjal and colleagues (2022) re-ran popular methods under identical settings and found "an inconsistent gain over random sampling baseline", shrinking with strong regularisation.</p>
+        <p><strong>Why both can be right.</strong> They used different models, datasets, budgets, augmentation and baselines. Gains reported under one setting do not carry automatically to another. Nothing here settles the question, and nothing should pretend to: the defensible move is to measure it on your own images, against a random baseline drawn several times.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>How to run the test on your own images<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Session 4's bench is the template. Fix a pool, a holdout that no strategy can reach, and a budget. Run random sampling with at least five seeds and record the spread. Run the strategy at the same budget and at two larger ones. Count a gain only where it clears the spread. Then do the step the papers above disagree about: retrain a <em>different</em> model on the labels the strategy bought and check the gain survives. If it does not, the labels were bought for one model, and the scope note should say so.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The model change two years later.</strong> A team bought its labels with uncertainty sampling on a small classifier, then switched to a pretrained network (constructed Corvane example). The labels were concentrated on the old model's hard cases, which were not the new model's hard cases. This is the exact situation Settles and Lowell and colleagues describe. A scope note that records the strategy, the model that chose the labels and the random-baseline result lets the next team decide whether to keep the labels or top them up at random.</p>
+    </div>
+  </section>
+
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Corvane's scope note, signed</h2>
+      <span class="tag demo">★ 22 min · everyone builds</span>
+    </div>
+    <p class="lede">One page, seven fields, each one pulled from a page of the vision plan the earlier sessions built. Everything below is a constructed Corvane example: the plant, the bins and the thresholds are invented to show the shape. Your numbers will differ; the fields should not.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The scope note as one page with seven fields, each fed by an earlier page of Corvane's vision plan: the decision, the images and what they are not, the features and starting model, the labelling plan, the go-live and switch-off thresholds, the vendor answers, and the signature with an owner and a review date.">
+        <defs>
+          <filter id="s6dSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="101" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <marker id="s6dAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s6dH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s6dL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s6dS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s6dA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s6dB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s6dN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s6dH" x="40" y="26">FIVE PAGES IN, ONE PAGE OUT (CONSTRUCTED CORVANE EXAMPLE)</text>
+
+        <g filter="url(#s6dSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="40" y="50" width="170" height="30" rx="6" transform="rotate(-0.8 125 65)" fill="#FCEEF8"/>
+          <rect x="40" y="90" width="170" height="30" rx="6" transform="rotate(0.7 125 105)" fill="#FCEEF8"/>
+          <rect x="40" y="130" width="170" height="30" rx="6" transform="rotate(-0.6 125 145)" fill="#FCEEF8"/>
+          <rect x="40" y="170" width="170" height="30" rx="6" transform="rotate(0.8 125 185)" fill="#FCEEF8"/>
+          <rect x="40" y="210" width="170" height="30" rx="6" transform="rotate(-0.7 125 225)" fill="#FCEEF8"/>
+          <path d="M218 145 C260 145 270 150 300 150" marker-end="url(#s6dAr)"/>
+          <rect x="310" y="46" width="530" height="240" rx="10" transform="rotate(0.3 575 166)" fill="#FFFFFF"/>
+          <path d="M326 252 L560 252"/>
+          <rect x="600" y="234" width="220" height="38" rx="8" transform="rotate(-0.5 710 253)" fill="#5FD3DC" stroke="#005961"/>
+        </g>
+
+        <text class="s6dS" x="52" y="69">1 · image card</text>
+        <text class="s6dS" x="52" y="109">2 · feature choice</text>
+        <text class="s6dS" x="52" y="149">3 · baseline, error table</text>
+        <text class="s6dS" x="52" y="189">4 · labelling budget</text>
+        <text class="s6dS" x="52" y="229">5 · failure slices</text>
+
+        <text class="s6dA" x="326" y="72">THE DECISION</text>
+        <text class="s6dS" x="456" y="72">route textiles to bin T, everything else to manual</text>
+        <text class="s6dA" x="326" y="96">THE IMAGES</text>
+        <text class="s6dS" x="456" y="96">one camera, one lamp, greyscale; what they are not</text>
+        <text class="s6dA" x="326" y="120">THE MODEL</text>
+        <text class="s6dS" x="456" y="120">pretrained extractor, small classifier on top</text>
+        <text class="s6dA" x="326" y="144">THE LABELS</text>
+        <text class="s6dS" x="456" y="144">holdout first, double-labelled; stop rule</text>
+        <text class="s6dA" x="326" y="168">GO-LIVE</text>
+        <text class="s6dS" x="456" y="168">per-class floor, calibration, shift tests</text>
+        <text class="s6dA" x="326" y="192">SWITCH-OFF</text>
+        <text class="s6dS" x="456" y="192">the reading that sends every item to manual</text>
+        <text class="s6dA" x="326" y="216">VENDOR</text>
+        <text class="s6dS" x="456" y="216">six answers in writing</text>
+        <text class="s6dS" x="326" y="270">signed: owner, date</text>
+        <text class="s6dB" x="616" y="258">review in 90 days</text>
+
+        <text class="s6dN" x="40" y="306">The switch-off line is the field most scope notes forget, and the one that makes a vision feature safe to try.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - every field on the right is a page you already wrote; the signature is the only new thing</figcaption>
+    </figure>
+
+    <div class="steps">
+      <div class="step">
+        <p><strong>Write the decision in one sentence, with its fallback.</strong> A vision feature that routes items needs a place for the items it is unsure about. Name it.</p>
+        <div class="prompt-box good"><span class="label">★ Field 1 · the decision (constructed Corvane example)</span>DECISION   Route items the camera classifies as textile to bin T.
+           Everything else, and anything below the confidence floor,
+           goes to the manual station as today.
+NOT IN SCOPE   defects, contamination, colour sorting, other lines</div>
+      </div>
+      <div class="step">
+        <p><strong>Copy the image card's "is not" field and add the camera.</strong> From session 1. The distance between training images and camera images is the first risk on the page.</p>
+        <div class="prompt-box good"><span class="label">★ Field 2 · the images (constructed Corvane example)</span>CAMERA     one overhead camera, one lamp, belt speed fixed
+TRAINING   first labels from this camera only; public sets for
+           pretraining, never for the holdout
+IS NOT     Fashion-MNIST garments were a teaching stand-in; none
+           of them is in the training or the holdout set</div>
+      </div>
+      <div class="step">
+        <p><strong>Choose the starting point and say why.</strong> From sessions 2 and 3, and Part 1 tonight.</p>
+        <div class="prompt-box good"><span class="label">★ Field 3 · the model (constructed Corvane example)</span>START      pretrained network as a fixed feature extractor
+           (name, training data, licence written here)
+TOP        a small classifier on Corvane's labels, like the bench
+BASELINE   majority class and the session 3 baseline, both printed
+           on every report</div>
+      </div>
+      <div class="step">
+        <p><strong>Paste the labelling plan.</strong> From session 4, with the lever order from Part 2: quality before volume, volume before picking.</p>
+        <div class="prompt-box good"><span class="label">★ Field 4 · the labels (constructed Corvane example)</span>HOLDOUT    1,000 images, labelled first, by two people, never picked
+QUALITY    agreement checked on 10% of every batch, by class pair
+ROUNDS     50 random, then batches of 50; picking strategy kept only
+           if it clears the spread of five random seeds
+RECORD     strategy, the model that chose the labels, every image id</div>
+      </div>
+      <div class="step">
+        <p><strong>Set the go-live and switch-off lines.</strong> From session 5. Numbers here are placeholders to be set from Corvane's own holdout; write the rule, then the value.</p>
+        <div class="prompt-box good"><span class="label">★ Field 5 · go-live and switch-off (constructed Corvane example)</span>GO-LIVE    every class above its floor on the holdout, not just
+           the average; calibration error reported; the shift tests
+           (dimmer lamp, flipped, rotated) run and their drop recorded
+SWITCH-OFF a weekly audit sample below the floor, or average confidence
+           rising while audited accuracy falls: route all to manual</div>
+      </div>
+      <div class="step">
+        <p><strong>Attach the vendor's answers and sign.</strong> The six questions from Part 2, answered in writing. Then one name, one date, and the date it is read again.</p>
+        <div class="prompt-box good"><span class="label">★ Fields 6 and 7 · vendor and signature (constructed Corvane example)</span>VENDOR     answers to the six questions attached, dated
+OWNER      one named person, who agreed to it
+SIGNED     date
+REVIEW     in 90 days, or at the first model change, whichever is first</div>
+      </div>
+    </div>
+
+    <div class="scorecard" data-title="The scope note gate" data-msgs="Fourteen of fourteen. Somebody who was not in the room could run this feature from the note alone; sign it.|Close, and not yet. Any row under 2 is a decision the vendor or the next team will make for you; write it before signing.|Half the gate is open. The rows at 0 are usually the switch-off line and the holdout owner; those two take an hour and cost the most when missing.|Do not sign this note yet. Go back to the session each low row names and finish that page of the vision plan first." data-foot="Score every row 0 for not yet, 1 for partly, 2 for solid. Anything under 14 of 14 does not get signed: a half-written switch-off line is the same as none to the person on the night shift.">
+      <div class="sc-row"><div class="sc-q">The images the model will see are described, including what the training images are not. <em>Session 1. The image card's last field, and the distance a pretrained network brings with it.</em></div></div>
+      <div class="sc-row"><div class="sc-q">The features or starting network are named, with the data they learned on and their licence. <em>Sessions 2 and 6. Hand-made kernels, or a pretrained extractor, written down with its history.</em></div></div>
+      <div class="sc-row"><div class="sc-q">A baseline and a per-class error table are printed beside every accuracy. <em>Session 3. The confused pairs are the ones that cost money; an average hides them.</em></div></div>
+      <div class="sc-row"><div class="sc-q">The holdout is labelled first, by two people, and no labelling strategy can pick from it. <em>Session 4. On the bench, label quality moved accuracy 27.1 points, more than any other lever.</em></div></div>
+      <div class="sc-row"><div class="sc-q">Any gain claimed for a labelling strategy clears the spread of several random draws at the same budget. <em>Session 4 and tonight. At 300 labels, 1.8 points of gain sat inside 2.0 points of luck.</em></div></div>
+      <div class="sc-row"><div class="sc-q">Go-live is a floor per class plus a calibration check plus the shift tests, not one average. <em>Session 5. A quarter turn took the bench model to 5.1% correct at 83.7% confidence.</em></div></div>
+      <div class="sc-row"><div class="sc-q">There is a switch-off line, an owner who agreed to it, and a review date in their calendar. <em>Tonight. Every other row describes the feature; this one keeps it safe after launch.</em></div></div>
+    </div>
+  </section>
+
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>After the last session</h2>
+      <span class="tag exercise">45 min</span>
+    </div>
+    <ol>
+      <li><strong>Write the seven fields for a vision feature you know,</strong> or for Corvane if you have none, and score it on the gate. Every row under 2 names the session to revisit.</li>
+      <li><strong>Find the data card of one pretrained network</strong> you could start from, and write its four transfer lines: name, training data, licence, distance from your camera.</li>
+      <li><strong>Re-run session 4's bench with a different seed in mind:</strong> list what you would need to change in your own pipeline to report a five-seed spread for every comparison.</li>
+      <li><strong>Send the six vendor questions</strong> to whoever would build the feature, and file the answers with the note. A question with no answer is a row at 0.</li>
+    </ol>
+  </section>
+
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 6 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="3">
+      <p class="qtext">1 · On the bench, which lever moved holdout accuracy the most?</p>
+      <button class="qopt" type="button">A · Choosing uncertainty sampling over random labels at 300</button>
+      <button class="qopt" type="button">B · Switching from raw pixels to convolution features</button>
+      <button class="qopt" type="button">C · Going from 300 to 2,000 labels</button>
+      <button class="qopt" type="button">D · Label quality: 99 wrong labels in 300 cost 27.1 points, against 6.7 for more labels, 6.4 for better features and 1.8 for picking</button>
+      <p class="qwhy">The lever order on the bench is quality, then volume and features, then picking. That is why the holdout and the agreement check are the first lines of the labelling plan.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">2 · A vendor cites a paper showing active learning beats random sampling by a large margin. What is the defensible response?</p>
+      <button class="qopt" type="button">A · Accept it; a peer-reviewed result settles the question</button>
+      <button class="qopt" type="button">B · Note that careful studies disagree (Munjal et al. found an inconsistent gain, Lowell et al. found successor models not consistently better), and ask for the comparison on your own images against several random draws, including a retrain with a different model</button>
+      <button class="qopt" type="button">C · Reject it; active learning never works</button>
+      <button class="qopt" type="button">D · Ask only for the price per label</button>
+      <p class="qwhy">The literature has not resolved this, and the bench sits on both sides depending on the budget. The answer for your feature is a measurement, not a citation.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Why does the scope note carry a switch-off line?</p>
+      <button class="qopt" type="button">A · Because a vision model can be confidently wrong under shift, as the quarter-turned holdout at 5.1% correct and 83.7% confidence showed; the switch-off line says in advance what reading sends every item back to the manual station</button>
+      <button class="qopt" type="button">B · Because vendors require it</button>
+      <button class="qopt" type="button">C · Because the model will be retrained every night</button>
+      <button class="qopt" type="button">D · Because accuracy always falls after launch</button>
+      <p class="qwhy">Confidence cannot be trusted to warn you, so an audited sample has to. The switch-off line turns that audit into a decision someone has already agreed to.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Transfer: general first layers, specific last layers, transferred initialisation</span><span class="note">Yosinski, Clune, Bengio, Lipson, NIPS 2014, arXiv:1411.1792, abstract read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Every lever size: 27.1, 6.7, 6.4, 4.9, 1.8 and the 2.0 luck spread</span><span class="note">Computed on the session 4 bench from real Fashion-MNIST images and reproduced by an independent numpy reference</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The active learning disagreement, both sides</span><span class="note">Settles TR 1648; Lowell, Lipton, Wallace, EMNLP 2019; Sener and Savarese, ICLR 2018; Beck et al. 2021; Munjal et al., CVPR 2022; all read at source, abstracts or full text as the source map records</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Pretrained networks to start from, architectures</span><span class="note">Named as a practice, not benchmarked here; architectures belong to the Deep Learning sessions, linked</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Corvane's scope note, its bins, thresholds and review date</span><span class="note">Constructed Corvane example, to show the shape of the page; every value is a placeholder for your own holdout</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Every fact on this page, and its verification tier, is recorded in the course's source map.</p>
+  </section>
+
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 6 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Transfer buys features, not labels</b><span>Lower layers carry over; your camera's labels and shifts do not.</span></div>
+      <div class="cheat-item"><b>Lever order</b><span>Label quality 27.1, more labels 6.7, features 6.4, picking 1.8 at 300. Spend in that order.</span></div>
+      <div class="cheat-item"><b>Measure picking yourself</b><span>Five random seeds, same budget, a retrain with a different model. Count only gains past the spread.</span></div>
+      <div class="cheat-item"><b>The disagreement is real</b><span>Large-margin and 2x-4x gains on one side; inconsistent gains and model coupling on the other.</span></div>
+      <div class="cheat-item"><b>Six vendor questions</b><span>Holdout owner, agreement rate, per-class slices, shift and calibration, who chose the labels, pretraining data.</span></div>
+      <div class="cheat-item"><b>Seven fields, one signature</b><span>Decision, images, model, labels, go-live, switch-off, owner. Review in 90 days.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>That is the sixth page of Corvane's vision plan and the end of the sessions. Go back to the landing page for your passport, or re-run the session 4 bench on the question you most want to argue about. The habit to keep: before trusting any vision number, ask what the model received and which labels produced it.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 6 of 6 · learn-computer-vision-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="05-where-it-fails.html">← Prev: Where it fails</a> &nbsp;·&nbsp; <a href="../index.html">Course home →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

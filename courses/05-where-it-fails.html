@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 5 of 6. One accuracy number hides ten classes, a lamp, a belt and a camera angle. Failure slices, camera shift and calibration measured on a real model, then detection and IoU on drawn boxes. Computed in your browser.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Where it fails: slices and shift - learn computer vision with phoebe">
+<meta property="og:description" content="Session 5 of 6. Turn the item a quarter and the model drops to 5.1% correct while reporting 83.7% confidence.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/courses/05-where-it-fails.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Where it fails: slices and shift - learn computer vision with phoebe">
+<meta name="twitter:description" content="Session 5 of 6. Failure slices, camera shift, calibration and IoU, measured on real images.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 5 · Where it fails: slices and shift - learn computer vision with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-computer-vision-with-phoebe</a> / Session 5 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Computer Vision Foundations with Phoebe · Session 5 of 6</div>
+    <h1>Where it <span class="accent">fails</span>: slices and shift</h1>
+    <p class="sub">The best model on the bench scores 82.5% on its holdout, and that number is true. It is also the least useful number you will see tonight. Split it by class and the Shirt is wrong more than a third of the time. Turn the holdout a quarter and the same model gets 5.1% right while reporting 83.7% confidence. Tonight we take one good model and break it on purpose, with array operations that stand in for a lamp, a belt and a camera, so that the failures are found on a page instead of on the line.</p>
+    <div class="chip-row">
+      <span class="chip level">🟠 Applied</span>
+      <span class="chip audience">Analysts and data scientists who will sign off a vision model</span>
+      <span class="chip audience">Python, numpy, scikit-learn</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:5">3-18 · Slices, shift, calibration, IoU</span>
+      <span class="a3" style="flex:7">18-40 · Build-along: Corvane's evaluation slices</span>
+      <span class="a4" style="flex:2">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Where we start</h2>
+    </div>
+    <p class="lede">Session 4 bought labels and climbed to a ceiling: the fixed convolution features trained on all 2,000 pool labels, <strong>82.5% correct</strong> on a holdout of 1,000 Fashion-MNIST garments. Tonight that model is the patient. We do not retrain it and we do not improve it. We cut its holdout into slices, change the images the way a real camera would, and read what the model says about its own certainty. The images are still garments standing in for textiles on Corvane's line (constructed Corvane example), not waste photos, and that gap is exactly what tonight measures.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+      <span class="pill">★ Build-along = run the code yourself</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> The habit of never accepting one accuracy number, a shift test you can run in five lines of numpy, an ECE function that tells you when a model's confidence stops meaning anything, an IoU function checked against four drawn boxes, and page 5 of Corvane's vision plan: the evaluation slices that must pass before go-live.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers failure slices</span>
+      <h2>One number hides ten classes and more</h2>
+      <span class="tag concept">4 min live</span>
+    </div>
+    <p class="lede">An accuracy of 82.5% is an average over 1,000 images. Averages are honest about the whole and silent about the parts. A <strong>slice</strong> is any subset you can name in advance, a class, a lighting condition, a supplier, a size, and the error rate on that subset is the number a sorting line actually lives with. The first slice is always the class. The second is a property of the image itself.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 374" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Per-class error of the all-labels model on the 1,000-image holdout: Shirt 36.7%, Pullover 32.7%, Coat 31.6%, Dress 23.3%, T-shirt 17.9%, Sneaker 12.4%, Trouser 5.8%, Ankle boot 5.7%, Bag 5.0%, Sandal 4.8%. On the right, the faintest quarter of images by ink scores 86.0% correct, 215 of 250, against 81.3%, 610 of 750, for the rest.">
+        <defs>
+          <filter id="s5aSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="51" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s5aHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s5aAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s5aH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s5aL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s5aS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s5aB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s5aV { font: 800 16px Inter, sans-serif; fill: #6A0055; }
+          .s5aA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s5aN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s5aH" x="40" y="30">PER-CLASS ERROR, ONE MODEL, 82.5% OVERALL</text>
+        <text class="s5aH" x="610" y="30">A SLICE BY IMAGE PROPERTY</text>
+
+        <g filter="url(#s5aSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="140" y="52" width="367" height="16" rx="3" transform="rotate(-0.3 323 60)" fill="url(#s5aHc)"/>
+          <rect x="140" y="76" width="327" height="16" rx="3" transform="rotate(0.3 303 84)" fill="url(#s5aHc)"/>
+          <rect x="140" y="100" width="316" height="16" rx="3" transform="rotate(-0.3 298 108)" fill="url(#s5aHc)"/>
+          <rect x="140" y="124" width="233" height="16" rx="3" transform="rotate(0.3 256 132)" fill="#FCEEF8"/>
+          <rect x="140" y="148" width="179" height="16" rx="3" transform="rotate(-0.3 229 156)" fill="#FCEEF8"/>
+          <rect x="140" y="172" width="124" height="16" rx="3" transform="rotate(0.3 202 180)" fill="#FCEEF8"/>
+          <rect x="140" y="196" width="58" height="16" rx="3" transform="rotate(-0.4 169 204)" fill="#FFFFFF"/>
+          <rect x="140" y="220" width="57" height="16" rx="3" transform="rotate(0.4 168 228)" fill="#FFFFFF"/>
+          <rect x="140" y="244" width="50" height="16" rx="3" transform="rotate(-0.4 165 252)" fill="#FFFFFF"/>
+          <rect x="140" y="268" width="48" height="16" rx="3" transform="rotate(0.4 164 276)" fill="#FFFFFF"/>
+          <path d="M140 46 L140 292" stroke="#5E4A57" stroke-width="1.4"/>
+          <path d="M600 46 L600 330" stroke="#EFE4EB" stroke-width="1.4"/>
+          <!-- faint slice -->
+          <path d="M630 300 L840 300" stroke="#5E4A57" stroke-width="1.4"/>
+          <rect x="650" y="128" width="64" height="172" rx="4" transform="rotate(-0.6 682 214)" fill="#5FD3DC" stroke="#005961"/>
+          <rect x="752" y="137" width="64" height="163" rx="4" transform="rotate(0.6 784 218)" fill="url(#s5aHc)"/>
+        </g>
+
+        <text class="s5aL" x="130" y="64" text-anchor="end">Shirt</text>
+        <text class="s5aL" x="130" y="88" text-anchor="end">Pullover</text>
+        <text class="s5aL" x="130" y="112" text-anchor="end">Coat</text>
+        <text class="s5aL" x="130" y="136" text-anchor="end">Dress</text>
+        <text class="s5aL" x="130" y="160" text-anchor="end">T-shirt/top</text>
+        <text class="s5aL" x="130" y="184" text-anchor="end">Sneaker</text>
+        <text class="s5aL" x="130" y="208" text-anchor="end">Trouser</text>
+        <text class="s5aL" x="130" y="232" text-anchor="end">Ankle boot</text>
+        <text class="s5aL" x="130" y="256" text-anchor="end">Bag</text>
+        <text class="s5aL" x="130" y="280" text-anchor="end">Sandal</text>
+
+        <text class="s5aV" x="516" y="66">36.7%</text>
+        <text class="s5aL" x="476" y="89">32.7%</text>
+        <text class="s5aL" x="465" y="113">31.6%</text>
+        <text class="s5aL" x="382" y="137">23.3%</text>
+        <text class="s5aL" x="328" y="161">17.9%</text>
+        <text class="s5aL" x="273" y="185">12.4%</text>
+        <text class="s5aL" x="207" y="209">5.8%</text>
+        <text class="s5aL" x="206" y="233">5.7%</text>
+        <text class="s5aL" x="199" y="257">5.0%</text>
+        <text class="s5aL" x="197" y="281">4.8%</text>
+
+        <text class="s5aA" x="140" y="312">hachured: the three upper-body garments that look alike at 14 x 14</text>
+        <text class="s5aS" x="140" y="328">wrong as a share of that class on the holdout</text>
+
+        <text class="s5aS" x="610" y="50">lowest quarter of images by total ink</text>
+        <text class="s5aS" x="610" y="66">against everything else</text>
+        <text class="s5aV" x="682" y="116" text-anchor="middle">86.0%</text>
+        <text class="s5aV" x="784" y="125" text-anchor="middle">81.3%</text>
+        <text class="s5aL" x="682" y="318" text-anchor="middle">faintest quarter</text>
+        <text class="s5aS" x="682" y="334" text-anchor="middle">215 of 250 correct</text>
+        <text class="s5aL" x="784" y="318" text-anchor="middle">the rest</text>
+        <text class="s5aS" x="784" y="334" text-anchor="middle">610 of 750 correct</text>
+
+        <text class="s5aN" x="40" y="360">The faint items you would guess are hard came out easier. Slices are measured, not assumed.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - 82.5% overall is Shirt at 36.7% wrong and Sandal at 4.8%, averaged</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Slice by class, then by a property of the image<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Read the bars from the top. Shirt is wrong 36.7% of the time, Pullover 32.7%, Coat 31.6%. Those three are the same silhouette at 14 x 14 pixels: an upper-body garment with sleeves. The biggest confusions say so directly: Pullover read as Coat 16 times, Shirt read as T-shirt 15 times, Coat read as Shirt 15 times. At the bottom, Bag and Sandal are wrong about one time in twenty. The overall 82.5% is a blend of a model that is nearly solved on some classes and close to a coin toss between neighbours on others.</p>
+        <p>The second slice is not a class at all. Sort the 1,000 holdout images by how much ink they carry and take the faintest quarter. The obvious guess is that faint, thin items are harder. On this model they are easier: 215 of 250 correct, 86.0%, against 610 of 750, 81.3%, for the rest. Why they are easier is the next question to measure, not to guess; the point tonight is that the guess was wrong, and a review aimed by that guess would have looked in the wrong place.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Choose the slices before you see the results<span class="mini">5 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>If you cut the holdout a hundred ways after training and report the worst slice, one of them will look alarming by chance alone, especially when a slice holds only a few dozen images. The discipline that prevents it is borrowed from trial design: <strong>write the slices down before you score</strong>, with the reason each one matters to the business, and report all of them, including the boring ones.</p>
+        <p>Good slices come from three places. The label set (every class, always). The camera and the site (lamp, belt speed, time of day, the side of the belt an item lands on). The cost of a mistake (the classes that send an item to the wrong bin at the highest cost). For Corvane (constructed Corvane example) that means per class, faint versus heavy items, and anything the camera changes, which is Part 2. A slice with fewer than about a hundred images gets its count printed next to its rate, so nobody reads 3 of 12 as a trend.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Shirt, Pullover and Coat at Corvane (constructed Corvane example).</strong> Suppose Corvane routes cotton tops to one bin and wool outerwear to another. The overall accuracy says the model is fine. The per-class table says that a third of the pullovers go to the wrong bin, and that the confusion is between exactly the two classes the business needs separated. That is not a model problem to tune away; it is a scope question for session 6: do these two bins need a better camera, more labels on that pair, or a person checking that pair only?</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers shift and calibration</span>
+      <h2>The camera changes; the model stays sure</h2>
+      <span class="tag concept">6 min live</span>
+    </div>
+    <p class="lede">A test set drawn from the same pool as the training set measures one thing: how well the model does on more images like the ones it saw. A camera on a belt produces images that are not like that. The lamp dims, items land facing either way, the belt shifts them a few pixels, some arrive turned. <strong>Distribution shift</strong> is the name for any of these, and the dangerous part is rarely the accuracy drop. It is that the model's confidence does not drop with it.</p>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>What to click in the widget<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>One model, trained once on all 2,000 pool labels. Each button changes the 1,000 holdout images with one array operation, then scores them again. The shifts are modelled stand-ins for a camera problem; the scoring is real. Click them in order and read two numbers side by side: accuracy and average confidence.</p>
+        <p><em>As photographed</em>: 82.5% correct, 82.6% average confidence, ECE 0.022. The model is about as sure as it is right. <em>Lamp dims (x0.6)</em>: accuracy barely moves, 81.3%, but confidence falls to 71.7%; the model is now less sure than it should be. <em>Item faces the other way</em>: 56.5% correct at 81.9% confidence, and every Sneaker and every Ankle boot is wrong, Sandal 81.0%. <em>2 pixels to the right</em>: 36.1% at 64.5%, with Pullover and Shirt 100% wrong. <em>Turned a quarter</em>: 5.1% correct, below the 10% you would get by guessing, at 83.7% confidence, higher than on the clean images.</p>
+      </div>
+    </details>
+
+    <div id="cvf-shift"></div>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 372" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paired bars for five camera shifts, accuracy against average confidence. As photographed 82.5% and 82.6%, ECE 0.022. Lamp dims 81.3% and 71.7%, ECE 0.096. Flipped 56.5% and 81.9%, ECE 0.254. Two pixels right 36.1% and 64.5%, ECE 0.284. Quarter turn 5.1% and 83.7%, ECE 0.786, a gap of 78.6 points. A dashed line marks 10%, the rate of guessing.">
+        <defs>
+          <filter id="s5bSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="53" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s5bHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s5bAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s5bH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s5bL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s5bS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s5bB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s5bV { font: 800 16px Inter, sans-serif; fill: #6A0055; }
+          .s5bA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s5bN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s5bH" x="40" y="26">SAME MODEL, FIVE CAMERAS: HOW RIGHT IT IS, HOW SURE IT SAYS IT IS</text>
+        <text class="s5bS" x="88" y="54">accuracy</text>
+        <text class="s5bS" x="200" y="54">average confidence</text>
+        <text class="s5bB" x="356" y="54">the gap that matters</text>
+
+        <g filter="url(#s5bSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- legend swatches -->
+          <rect x="66" y="44" width="16" height="12" rx="2" fill="url(#s5bHc)"/>
+          <rect x="178" y="44" width="16" height="12" rx="2" fill="#FFFFFF"/>
+          <rect x="334" y="44" width="16" height="12" rx="2" fill="#5FD3DC" stroke="#005961"/>
+          <!-- baseline and guessing line -->
+          <path d="M96 290 L846 290" stroke="#5E4A57" stroke-width="1.4"/>
+          <path d="M96 268 L846 268" stroke="#AD008B" stroke-width="1.2" stroke-dasharray="5 5"/>
+          <!-- as photographed -->
+          <rect x="100" y="108.5" width="40" height="181.5" rx="3" transform="rotate(-0.5 120 199)" fill="url(#s5bHc)"/>
+          <rect x="146" y="108.3" width="40" height="181.7" rx="3" transform="rotate(0.5 166 199)" fill="#FFFFFF"/>
+          <!-- lamp dims -->
+          <rect x="250" y="111.1" width="40" height="178.9" rx="3" transform="rotate(0.5 270 200)" fill="url(#s5bHc)"/>
+          <rect x="296" y="132.3" width="40" height="157.7" rx="3" transform="rotate(-0.5 316 211)" fill="#FFFFFF"/>
+          <!-- flipped -->
+          <rect x="400" y="165.7" width="40" height="124.3" rx="3" transform="rotate(-0.5 420 228)" fill="url(#s5bHc)"/>
+          <rect x="446" y="109.8" width="40" height="180.2" rx="3" transform="rotate(0.5 466 200)" fill="#FFFFFF"/>
+          <!-- 2 px right -->
+          <rect x="550" y="210.6" width="40" height="79.4" rx="3" transform="rotate(0.5 570 250)" fill="url(#s5bHc)"/>
+          <rect x="596" y="148.1" width="40" height="141.9" rx="3" transform="rotate(-0.5 616 219)" fill="#FFFFFF"/>
+          <!-- quarter turn -->
+          <rect x="700" y="278.8" width="40" height="11.2" rx="2" transform="rotate(-0.5 720 284)" fill="url(#s5bHc)"/>
+          <rect x="746" y="105.9" width="40" height="184.1" rx="3" transform="rotate(0.5 766 198)" fill="#FFFFFF"/>
+          <rect x="794" y="105.9" width="14" height="172.9" rx="2" transform="rotate(-0.4 801 192)" fill="#5FD3DC" stroke="#005961"/>
+        </g>
+
+        <text class="s5bL" x="120" y="100" text-anchor="middle">82.5%</text>
+        <text class="s5bS" x="166" y="100" text-anchor="middle">82.6%</text>
+        <text class="s5bL" x="270" y="103" text-anchor="middle">81.3%</text>
+        <text class="s5bS" x="316" y="124" text-anchor="middle">71.7%</text>
+        <text class="s5bL" x="420" y="157" text-anchor="middle">56.5%</text>
+        <text class="s5bS" x="466" y="101" text-anchor="middle">81.9%</text>
+        <text class="s5bL" x="570" y="202" text-anchor="middle">36.1%</text>
+        <text class="s5bS" x="616" y="140" text-anchor="middle">64.5%</text>
+        <text class="s5bV" x="720" y="258" text-anchor="middle">5.1%</text>
+        <text class="s5bS" x="766" y="97" text-anchor="middle">83.7%</text>
+        <text class="s5bB" x="814" y="196">gap</text>
+
+        <text class="s5bA" x="40" y="268">10%</text>
+        <text class="s5bS" x="40" y="285">guess</text>
+
+        <text class="s5bL" x="143" y="310" text-anchor="middle">as photographed</text>
+        <text class="s5bL" x="293" y="310" text-anchor="middle">lamp dims x0.6</text>
+        <text class="s5bL" x="443" y="310" text-anchor="middle">faces other way</text>
+        <text class="s5bL" x="593" y="310" text-anchor="middle">2 px right</text>
+        <text class="s5bL" x="753" y="310" text-anchor="middle">quarter turn</text>
+        <text class="s5bS" x="143" y="327" text-anchor="middle">ECE 0.022</text>
+        <text class="s5bS" x="293" y="327" text-anchor="middle">ECE 0.096</text>
+        <text class="s5bS" x="443" y="327" text-anchor="middle">ECE 0.254</text>
+        <text class="s5bS" x="593" y="327" text-anchor="middle">ECE 0.284</text>
+        <text class="s5bB" x="753" y="327" text-anchor="middle">ECE 0.786</text>
+
+        <text class="s5bN" x="40" y="358">The quarter turn is below guessing and more confident than the clean images: 78.6 points of false certainty.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - accuracy fell from 82.5% to 5.1%; confidence went up, from 82.6% to 83.7%</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Calibration and ECE<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A model is <strong>calibrated</strong> when its confidence means what it says: of all the images where it reports 80% confidence, about 80% are right. Expected calibration error, ECE, puts one number on the gap. The standard binned definition: sort the predictions into 10 bins by confidence (0 to 0.1, 0.1 to 0.2, and so on), and in each bin take the gap between accuracy and average confidence; ECE is the average of those gaps, weighted by how many images fall in each bin. Zero is honest. The widget's table under the readouts shows the bins themselves.</p>
+        <p>On clean images this model's ECE is 0.022: nearly honest. Under the quarter turn it is 0.786, because almost every prediction sits in the high-confidence bins and almost none are right. Guo, Pleiss, Sun and Weinberger (2017) report in their abstract that modern neural networks are poorly calibrated, and that temperature scaling, a single parameter fitted after training, is surprisingly effective at fixing it. Note what that fix can and cannot do: it rescales confidence on data like the calibration set. It cannot make a model know that an image is turned. Calibration on the clean holdout says nothing about calibration under shift; you measure both.</p>
+        <p>For reliability diagrams, Brier score and the full calibration toolkit, <a href="https://phoebefu6.github.io/learn-model-evaluation-with-phoebe/courses/b3-curves-calibration.html">Model Evaluation b3, curves and calibration</a> goes into depth. Here we only need the one number and the habit of reading it next to accuracy.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Corruption benchmarks: shift as a test suite<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The five buttons above are a tiny version of an idea that has a published benchmark behind it. Hendrycks and Dietterich (2019) built two benchmarks on ImageNet images: ImageNet-C for common corruptions and ImageNet-P for perturbations, so robustness can be scored as a fixed suite rather than argued about. Their abstract reports "negligible changes in relative corruption robustness from AlexNet classifiers to ResNet classifiers": years of better clean accuracy did not, by their measure, buy proportionally better robustness to corruption.</p>
+        <p>The lesson for a buyer is procedural. Clean accuracy and robustness are different properties and need different tests. A vendor quoting one number on a clean benchmark has told you nothing about your lamp. Ask for the shift suite, or run your own: the build-along below is five array operations, and each one is a sentence in the scope note about what the camera might do.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Why the flip breaks the shoes (constructed Corvane example).</strong> Fashion-MNIST's photos are catalogue front-looks, and its shoes all face the same way. On a belt, items arrive in any orientation. The model never saw a sneaker pointing the other way, so it read every one as something else: 100% wrong on Sneaker and Ankle boot, 81.0% on Sandal. The fix is not a better classifier; it is to know the camera will produce flipped items and to say so before training, either by collecting them or by flipping on purpose as augmentation, which session 1 called a claim about the camera.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers detection, segmentation and IoU</span>
+      <h2>Boxes and masks: scoring where, not just what</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Everything so far answered one question per image: what is it? A belt rarely offers one centred item. <strong>Detection</strong> answers what and where, as a box around each item. <strong>Segmentation</strong> answers which pixels, as a mask the shape of the item. Each step up costs more labelling and needs a different score, because a prediction can now be the right class in the wrong place. The standard score for "the right place" is intersection over union, IoU.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A truth box from 40,30 to 160,150 and a model box slid right by a third, from 80,30 to 200,150. Their overlap is 80 by 120, 9,600 square pixels, shaded. Their union is 160 by 120, 19,200. IoU is 9,600 over 19,200, exactly 0.500, which is a miss at PASCAL VOC because the overlap must exceed 0.5. A scale marks VOC at 0.5 and COCO's strict metric at 0.75.">
+        <defs>
+          <filter id="s5cSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="57" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s5cHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s5cAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s5cH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s5cL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s5cS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s5cB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s5cV { font: 800 18px Inter, sans-serif; fill: #6A0055; }
+          .s5cA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s5cN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s5cH" x="40" y="30">TWO BOXES, ONE NUMBER</text>
+
+        <g filter="url(#s5cSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- overlap (the one thing) -->
+          <rect x="160" y="95" width="120" height="180" fill="#5FD3DC" stroke="none"/>
+          <!-- truth box, solid -->
+          <path d="M100 95 L280 95 L280 275 L100 275 Z" stroke-width="2.6"/>
+          <!-- model box, dashed -->
+          <path d="M160 95 L340 95 L340 275 L160 275 Z" stroke="#AD008B" stroke-width="2.6" stroke-dasharray="8 5"/>
+          <!-- union bracket -->
+          <path d="M100 290 L100 298 L340 298 L340 290" stroke="#5E4A57" stroke-width="1.4"/>
+          <!-- threshold scale -->
+          <path d="M440 230 L840 230" stroke="#5E4A57" stroke-width="1.6"/>
+          <path d="M440 224 L440 236 M640 220 L640 240 M740 220 L740 240 M840 224 L840 236" stroke="#5E4A57" stroke-width="1.6"/>
+          <path d="M634 230 L646 230" stroke="#AD008B" stroke-width="3"/>
+        </g>
+
+        <text class="s5cL" x="100" y="86">truth box (a person drew it)</text>
+        <text class="s5cA" x="246" y="70">model's box, slid right</text>
+        <text class="s5cL" x="220" y="180" text-anchor="middle">overlap</text>
+        <text class="s5cB" x="220" y="198" text-anchor="middle">80 x 120</text>
+        <text class="s5cB" x="220" y="214" text-anchor="middle">= 9,600</text>
+        <text class="s5cS" x="220" y="316" text-anchor="middle">union: 160 x 120 = 19,200</text>
+        <text class="s5cS" x="100" y="334">box units as in the widget, drawn at 1.5x</text>
+
+        <text class="s5cH" x="440" y="84">IoU = OVERLAP / UNION</text>
+        <text class="s5cV" x="440" y="114">9,600 / 19,200 = 0.500</text>
+        <text class="s5cL" x="440" y="140">PASCAL VOC: the overlap must exceed 0.5</text>
+        <text class="s5cA" x="440" y="158">exactly 0.500 does not exceed it: a miss</text>
+
+        <text class="s5cA" x="640" y="212" text-anchor="middle">0.5 VOC</text>
+        <text class="s5cL" x="740" y="212" text-anchor="middle">0.75 COCO strict</text>
+        <text class="s5cS" x="440" y="252">0</text>
+        <text class="s5cS" x="840" y="252" text-anchor="end">1</text>
+        <text class="s5cS" x="440" y="276">COCO's main AP: 10 thresholds, .50 to .95, step .05</text>
+        <text class="s5cS" x="440" y="294">small: under 32 x 32 px, about 41% of COCO objects</text>
+
+        <text class="s5cN" x="440" y="334">A third of a width off, and the right class still scores a miss.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - IoU is the shaded area over everything either box covers; 0.500 sits on the line and the line must be crossed</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Classification, detection, segmentation, and the IoU test<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Three tasks, three kinds of label. <strong>Classification</strong>: one class per image, which is all Fashion-MNIST offers. <strong>Detection</strong>: a box per object, given as two corners, plus a class. <strong>Segmentation</strong>: a class for every pixel, so the label is a mask. Nothing in this session trains a detector or a segmenter; the point is to know what each one would be scored on before anyone quotes you a number.</p>
+        <p>A predicted box counts as finding an object when it overlaps the true box enough. The PASCAL VOC Challenge (Everingham et al., 2010) defines the overlap as the area of the intersection divided by the area of the union, and requires that it "must exceed 0.5". The paper says the threshold "was set deliberately low to account for inaccuracies in bounding boxes in the ground truth data": people drawing boxes disagree by a few pixels, and a strict bar would punish the model for the labeller's wobble. VOC also counts duplicate detections of one object as false positives, so a model that draws three boxes around one item is penalised, not rewarded.</p>
+        <p>COCO's evaluation goes further. Its primary metric averages precision over ten IoU thresholds, .50 to .95 in steps of .05, so loose boxes earn less than tight ones. AP50 is labelled the "PASCAL VOC metric" and AP75 the "strict metric". COCO also reports small objects separately, those under 32 x 32 pixels, which are about 41% of its objects: a reminder that size is a slice too. How these scores hide failures across a vehicle fleet is the subject of <a href="https://phoebefu6.github.io/learn-autonomous-driving-with-phoebe/courses/p5-perception-metrics-that-hide-failures.html">Autonomous Driving p5, perception metrics</a>; here we stay with the box.</p>
+        <p>In the widget, start with <em>a tight guess</em>: IoU 0.876, a hit at both bars. Then <em>slid right by a third</em>: exactly 0.500, a miss at VOC because 0.500 does not exceed 0.5. <em>Too loose</em>: 0.498, a miss, though it contains the whole item. <em>Too small</em>: 0.250, inside the item and still a miss.</p>
+      </div>
+    </details>
+
+    <div id="cvf-iou"></div>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Which task does Corvane actually need?<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Each step up the ladder multiplies the labelling cost: a class per image is one click, a box is two corners per item, a mask is an outline traced around every item. Before choosing, ask what the line does with the answer. If a gate diverts one item at a time from a fixed position under the camera, classification is enough. If several items share a frame and an air jet must hit each one, the jet needs a location, so boxes. Masks earn their cost only when the shape itself drives the action, such as a robot arm choosing where to grip.</p>
+        <p>For Corvane (constructed Corvane example) the honest answer today is classification, with one line in the plan saying what IoU threshold would apply if boxes are ever needed, and why. Writing it now costs a sentence; arguing about it after a vendor has quoted "92% mAP" without saying which threshold costs a meeting.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Same metric name, different bar.</strong> "mAP" on PASCAL VOC means boxes counted at an overlap above 0.5. On COCO the headline AP averages ten thresholds up to 0.95, which is a much harder test. Two vendors can each report a detection "mAP" and be quoting different metrics. The question to ask is not "what is your mAP?" but "at which IoU threshold, on which object sizes, and on whose images?"</p>
+    </div>
+  </section>
+
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Corvane's evaluation slices, from the raw files</h2>
+      <span class="tag demo">★ 22 min · everyone builds</span>
+    </div>
+    <p class="lede">Seven steps in numpy and scikit-learn on the public Fashion-MNIST files. Every number printed below is what the code produced. One honest difference from the widget: the build-along trains <strong>a different model</strong>, logistic regression on full-size 28 x 28 raw pixels from 10,000 training images, scored on all 10,000 test images. The widget's model is the fixed convolution features on the 14 x 14 bench sample. So the numbers differ; what they share is the shape of the failure. The output is page 5 of <strong>Corvane's vision plan</strong> (constructed Corvane example).</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Corvane's evaluation plan as a hand-drawn card with six fields: slices to report, per class and faint items; shifts to test before go-live, flip, two pixels, quarter turn and dim lamp; a calibration check with ECE on clean and shifted images; a confidence rule that routes uncertain items to a person; the IoU threshold if boxes are ever needed; and what the plan does not cover.">
+        <defs>
+          <filter id="s5dSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="59" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s5dHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s5dAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s5dH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s5dL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s5dS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s5dA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s5dB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s5dN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s5dH" x="40" y="26">CORVANE'S EVALUATION PLAN (CONSTRUCTED CORVANE EXAMPLE)</text>
+
+        <g filter="url(#s5dSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="40" y="44" width="800" height="230" rx="10" transform="rotate(-0.3 440 159)" fill="#FFFFFF"/>
+          <path d="M40 76 L840 76" stroke="#AD008B"/>
+          <rect x="56" y="88" width="250" height="80" rx="8" transform="rotate(0.5 181 128)" fill="#FCEEF8"/>
+          <rect x="316" y="88" width="250" height="80" rx="8" transform="rotate(-0.5 441 128)" fill="#E6F8F9" stroke="#005961"/>
+          <rect x="576" y="88" width="250" height="80" rx="8" transform="rotate(0.4 701 128)" fill="#FCEEF8"/>
+          <rect x="56" y="180" width="250" height="80" rx="8" transform="rotate(-0.4 181 220)" fill="#FCEEF8"/>
+          <rect x="316" y="180" width="250" height="80" rx="8" transform="rotate(0.5 441 220)" fill="#FCEEF8"/>
+          <rect x="576" y="180" width="250" height="80" rx="8" transform="rotate(-0.5 701 220)" fill="url(#s5dHc)"/>
+        </g>
+
+        <text class="s5dL" x="56" y="66">Where it fails, page 5 of the vision plan</text>
+        <text class="s5dA" x="70" y="108">STEP 3 · SLICES TO REPORT</text>
+        <text class="s5dS" x="70" y="128">all 10 classes, with counts</text>
+        <text class="s5dS" x="70" y="144">faintest quarter vs the rest</text>
+        <text class="s5dB" x="330" y="108">STEP 4 · SHIFTS BEFORE GO-LIVE</text>
+        <text class="s5dS" x="330" y="128">flip, 2 px, quarter turn, dim</text>
+        <text class="s5dS" x="330" y="144">plus photos from the real belt</text>
+        <text class="s5dA" x="590" y="108">STEP 5 · CALIBRATION</text>
+        <text class="s5dS" x="590" y="128">ECE, 10 bins, clean and shifted</text>
+        <text class="s5dS" x="590" y="144">read next to accuracy, always</text>
+        <text class="s5dA" x="70" y="200">STEPS 4-5 · CONFIDENCE RULE</text>
+        <text class="s5dS" x="70" y="220">low confidence goes to a person</text>
+        <text class="s5dS" x="70" y="236">tested under shift, not only clean</text>
+        <text class="s5dA" x="330" y="200">STEP 6 · IF BOXES ARE NEEDED</text>
+        <text class="s5dS" x="330" y="220">state the IoU bar: 0.5 or 0.75</text>
+        <text class="s5dS" x="330" y="236">and the object sizes it covers</text>
+        <text class="s5dL" x="590" y="200">STEP 7 · NOT COVERED</text>
+        <text class="s5dL" x="590" y="220">garments, not waste;</text>
+        <text class="s5dL" x="590" y="236">shifts modelled, not filmed</text>
+
+        <text class="s5dN" x="40" y="298">The shift field is the one a clean holdout can never fill in for you.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - five fields are measured in the steps below; the sixth says what no measurement here can cover</figcaption>
+    </figure>
+
+    <div class="steps">
+      <div class="step">
+        <p><strong>Load the four files.</strong> The same loader as session 1, reading the <code>.gz</code> files from your <code>data/</code> folder.</p>
+        <div class="prompt-box good"><span class="label">★ Step 1 · load</span>import gzip
+import numpy as np
+
+def images(path):
+    with gzip.open(path, "rb") as f:
+        return np.frombuffer(f.read(), np.uint8, offset=16).reshape(-1, 28, 28)
+
+def labels(path):
+    with gzip.open(path, "rb") as f:
+        return np.frombuffer(f.read(), np.uint8, offset=8)
+
+x_train = images("data/train-images-idx3-ubyte.gz")
+y_train = labels("data/train-labels-idx1-ubyte.gz")
+x_test  = images("data/t10k-images-idx3-ubyte.gz")
+y_test  = labels("data/t10k-labels-idx1-ubyte.gz")
+CLASSES = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+           "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
+print(x_train.shape, x_test.shape)   # (60000, 28, 28) (10000, 28, 28)</div>
+      </div>
+      <div class="step">
+        <p><strong>Train one model and leave it alone.</strong> Logistic regression on raw pixels scaled to 0 to 1, fitted on 10,000 training images drawn with a fixed seed so the fit stays under a minute. It reaches 82.4% on the 10,000 test images. For scale, the Fashion-MNIST paper reports 0.842 for logistic regression on all 60,000.</p>
+        <div class="prompt-box good"><span class="label">★ Step 2 · one model</span>from sklearn.linear_model import LogisticRegression
+
+def flat(imgs):
+    return imgs.reshape(len(imgs), -1) / 255.0
+
+rng = np.random.default_rng(5)                       # fixed seed: same 10,000 every run
+idx = rng.choice(len(x_train), 10000, replace=False) # subsample keeps the fit under a minute
+model = LogisticRegression(max_iter=1000)
+model.fit(flat(x_train[idx]), y_train[idx])
+pred = model.predict(flat(x_test))
+print(f"clean accuracy {(pred == y_test).mean():.3f}")   # clean accuracy 0.824</div>
+      </div>
+      <div class="step">
+        <p><strong>Slice it.</strong> Per-class error, worst first, then the faint-item slice. Same shape as the widget: Shirt, Pullover and Coat at the top, and the faintest quarter scoring better than the rest, 86.3% (2,157 of 2,500) against 81.1% (6,086 of 7,500).</p>
+        <div class="prompt-box good"><span class="label">★ Step 3 · slices</span>for c in np.argsort([-(pred[y_test == c] != c).mean() for c in range(10)]):
+    print(f"{CLASSES[c]:12s} {(pred[y_test == c] != c).mean():6.1%} wrong")
+# Shirt         45.9% wrong
+# Pullover      28.0% wrong
+# Coat          25.8% wrong
+# T-shirt/top   21.0% wrong
+# Dress         16.9% wrong
+# Sandal         9.0% wrong
+# Sneaker        8.9% wrong
+# Bag            8.0% wrong
+# Ankle boot     7.1% wrong
+# Trouser        5.1% wrong
+
+ink = x_test.reshape(len(x_test), -1).mean(axis=1)
+faint = ink &lt;= np.quantile(ink, 0.25)                # the faintest quarter by mean ink
+print("faint", (pred[faint] == y_test[faint]).sum(), "of", faint.sum(),
+      "| rest", (pred[~faint] == y_test[~faint]).sum(), "of", (~faint).sum())
+# faint 2157 of 2500 | rest 6086 of 7500</div>
+      </div>
+      <div class="step">
+        <p><strong>Change the camera.</strong> Five versions of the full-size test set, each one array operation, scored by the same model. The quarter turn drops to 3.1% correct at 86.2% average confidence; the flip sends every Ankle boot wrong.</p>
+        <div class="prompt-box good"><span class="label">★ Step 4 · shifts</span>shifts = {
+    "as photographed":     x_test,
+    "lamp dims (x0.6)":    (x_test * 0.6).astype(np.uint8),
+    "faces the other way": np.flip(x_test, axis=2),            # np.fliplr on every image
+    "2 pixels right":      np.roll(x_test, 2, axis=2),         # wraps 2 edge columns, nearly all 0
+    "turned a quarter":    np.rot90(x_test, 1, axes=(1, 2)),
+}
+probs = {}
+for name, imgs in shifts.items():
+    p = model.predict_proba(flat(imgs))
+    probs[name] = p
+    print(f"{name:20s} accuracy {(p.argmax(1) == y_test).mean():6.1%}   confidence {p.max(1).mean():6.1%}")
+# as photographed      accuracy  82.4%   confidence  86.9%
+# lamp dims (x0.6)     accuracy  77.2%   confidence  76.6%
+# faces the other way  accuracy  55.7%   confidence  81.2%
+# 2 pixels right       accuracy  45.8%   confidence  74.5%
+# turned a quarter     accuracy   3.1%   confidence  86.2%
+
+flipped = probs["faces the other way"].argmax(1)
+for c in (5, 7, 9):
+    print(f"flipped {CLASSES[c]:11s} {(flipped[y_test == c] != c).mean():6.1%} wrong")
+# flipped Sandal       67.8% wrong
+# flipped Sneaker      88.6% wrong
+# flipped Ankle boot  100.0% wrong</div>
+      </div>
+      <div class="step">
+        <p><strong>Write ECE yourself.</strong> Ten bins by confidence, the gap between accuracy and confidence in each, weighted by the share of images in the bin. Clean, 0.045; turned a quarter, 0.831.</p>
+        <div class="prompt-box good"><span class="label">★ Step 5 · ECE</span>def ece(probs, y, bins=10):
+    conf = probs.max(axis=1)
+    right = probs.argmax(axis=1) == y
+    edges = np.linspace(0, 1, bins + 1)
+    total = 0.0
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        inside = (conf &gt; lo) &amp; (conf &lt;= hi)
+        if inside.any():
+            total += inside.mean() * abs(right[inside].mean() - conf[inside].mean())
+    return total
+
+print(f"ECE as photographed {ece(probs['as photographed'], y_test):.3f}")    # 0.045
+print(f"ECE turned a quarter {ece(probs['turned a quarter'], y_test):.3f}")  # 0.831</div>
+      </div>
+      <div class="step">
+        <p><strong>Write IoU and check it against the widget.</strong> Boxes as <code>(x0, y0, x1, y1)</code>. The four presets reproduce the widget exactly, because this part is pure geometry with no model in it. Note the strict <code>&gt;</code>: VOC says the overlap must exceed 0.5.</p>
+        <div class="prompt-box good"><span class="label">★ Step 6 · IoU</span>def iou(a, b):
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union
+
+truth = (40, 30, 160, 150)
+guesses = {"a tight guess": (46, 34, 164, 152), "slid right by a third": (80, 30, 200, 150),
+           "too loose": (20, 10, 190, 180), "too small": (70, 60, 130, 120)}
+for name, box in guesses.items():
+    v = iou(truth, box)
+    print(f"{name:22s} IoU {v:.3f}   VOC hit: {v &gt; 0.5}")
+# a tight guess          IoU 0.876   VOC hit: True
+# slid right by a third  IoU 0.500   VOC hit: False
+# too loose              IoU 0.498   VOC hit: False
+# too small              IoU 0.250   VOC hit: False</div>
+      </div>
+      <div class="step">
+        <p><strong>Write page 5 of the plan.</strong> The slices to report, the shifts that must be tested before go-live, the calibration check, and the IoU bar if boxes are ever needed. The numbers in it are this build-along's; replace them with your own run's. The acceptance limits are left for the team to set, because no published source can set them for a line nobody has filmed yet.</p>
+        <div class="prompt-box good"><span class="label">★ Step 7 · Corvane's evaluation slices (constructed Corvane example)</span>import json
+plan = {
+  "model_scored": "logistic regression, raw 28 x 28 pixels, 10,000 train images, seed 5",
+  "slices": "all 10 classes with counts; faintest quarter by ink vs the rest",
+  "slice_results": "Shirt 45.9% wrong worst, Trouser 5.1% best; faint 86.3% vs rest 81.1%",
+  "shifts_before_go_live": ["flip left-right", "2 pixels right", "quarter turn",
+                            "lamp x0.6", "100 labelled frames from the real belt"],
+  "shift_results": "flip 55.7%, 2 px 45.8%, quarter turn 3.1% at 86.2% confidence",
+  "calibration": "ECE, 10 bins, on clean and every shift; clean 0.045, quarter turn 0.831",
+  "confidence_rule": "below a threshold the team sets, route to a person; test it under shift",
+  "iou_if_boxes": "state 0.5 (VOC, must exceed) or 0.75 (COCO strict), and object sizes",
+  "not_covered": "garments not waste; shifts modelled by array operations, not filmed",
+}
+json.dump(plan, open("evaluation_plan.json", "w"), indent=2)</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>Run the shifts before the model is good, not after.</strong> A shift suite takes five lines and a minute. Run it on the first baseline, and every model after that is compared on clean accuracy and on the suite. A model that gains two points clean and loses ten on the quarter turn is a worse model for a belt.</p>
+    </div>
+  </section>
+
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 6</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Run the seven steps</strong> and check every printed number. Then change the seed in step 2 and rerun: which numbers move, and by how much? Write the spread next to the clean accuracy in the plan.</li>
+      <li><strong>Add one shift of your own</strong> that a belt camera could plausibly produce, such as a contrast change or a 1-pixel shift down, and add its accuracy, confidence and ECE to the plan. Write one sentence on why the camera might do it.</li>
+      <li><strong>Find the most confident mistakes.</strong> Under the quarter turn, list the 10 test images with the highest confidence that are wrong and print what the model called them. Is there a class it falls back to?</li>
+      <li><strong>Draw three boxes on paper</strong> around one object: one that you think should count as found, one that should not, and one you are unsure about. Compute IoU for each with your function and see where VOC's 0.5 and COCO's 0.75 put them.</li>
+    </ol>
+  </section>
+
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 5 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Under "turned a quarter" the model gets 5.1% right while reporting 83.7% average confidence. Why is that the most dangerous row of the shift table?</p>
+      <button class="qopt" type="button">A · Because 5.1% is the lowest accuracy, and the lowest number is always the most dangerous</button>
+      <button class="qopt" type="button">B · Because nothing in the model's output warns anyone: it is below the 10% of guessing yet more confident than on clean images, so a confidence gate would pass almost every wrong answer</button>
+      <button class="qopt" type="button">C · Because rotation damages the image file</button>
+      <button class="qopt" type="button">D · Because ECE cannot be computed on rotated images</button>
+      <p class="qwhy">The dimmed lamp lowers confidence, so a rule that routes low-confidence items to a person would catch it. The quarter turn raises confidence while accuracy collapses, ECE 0.786, so the same rule waves the mistakes through. Low accuracy you can see is a nuisance; low accuracy at high confidence is a hidden failure.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="3">
+      <p class="qtext">2 · A predicted box slid right by a third of its width scores IoU 0.500 against the true box. Under PASCAL VOC, is it a hit?</p>
+      <button class="qopt" type="button">A · Yes, because 0.500 equals the 0.5 threshold</button>
+      <button class="qopt" type="button">B · Yes, because the class is correct and the class is all VOC scores</button>
+      <button class="qopt" type="button">C · It depends on how many objects are in the image</button>
+      <button class="qopt" type="button">D · No: VOC requires the overlap to exceed 0.5, and 0.500 only meets it</button>
+      <p class="qwhy">Everingham et al. (2010) state the overlap "must exceed 0.5". The comparison is strict, which is why the build-along writes <code>v &gt; 0.5</code>. Too loose at 0.498 is also a miss, though it contains the whole item.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Before measuring, a teammate is sure the faintest items will be the hardest. The faint slice scores 86.0% (215 of 250) against 81.3% for the rest. What does that teach?</p>
+      <button class="qopt" type="button">A · Slices have to be measured, not assumed: the intuitive hard slice was easier, and a review aimed by intuition would have looked in the wrong place</button>
+      <button class="qopt" type="button">B · Faint images should be removed from the test set</button>
+      <button class="qopt" type="button">C · The model must have been trained on faint images only</button>
+      <button class="qopt" type="button">D · Overall accuracy is wrong whenever slices disagree with it</button>
+      <p class="qwhy">The build-along finds the same direction on a different model: 86.3% for the faint quarter against 81.1%. The overall 82.5% is not wrong; it is an average, and slices show what it averages. Choose slices in advance, measure all of them, report the counts.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Calibration: modern networks poorly calibrated, temperature scaling effective</span><span class="note">Guo, Pleiss, Sun, Weinberger (2017), On Calibration of Modern Neural Networks, ICML 2017, arXiv:1706.04599, abstract read at source; the ECE formula on this page is the standard binned definition, not quoted from the paper body</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Corruption benchmarks, ImageNet-C and ImageNet-P</span><span class="note">Hendrycks, Dietterich (2019), Benchmarking Neural Network Robustness to Common Corruptions and Perturbations, ICLR 2019, arXiv:1903.12261, abstract read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">IoU, the 0.5 threshold and its reason, duplicates as false positives</span><span class="note">Everingham et al. (2010), The PASCAL Visual Object Classes (VOC) Challenge, IJCV 88:303-338, full text read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">COCO AP over 10 thresholds, AP50 and AP75, small objects</span><span class="note">COCO detection evaluation, cocodataset.org/#detection-eval, read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Every shift, slice, ECE and IoU number in the widgets and figures</span><span class="note">Computed in your browser by the widget and checked value by value against an independent numpy reference; the build-along numbers come from its own run on the public files</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Corvane's belt, orientations, bins and evaluation plan</span><span class="note">Constructed Corvane example; the images are garments standing in for textiles, and the shifts are array operations, not footage from a camera</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Every fact on this page, and its verification tier, is recorded in the course's source map.</p>
+  </section>
+
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 5 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>One number hides slices</b><span>82.5% overall is Shirt 36.7% wrong and Sandal 4.8%. Report every class, with counts.</span></div>
+      <div class="cheat-item"><b>Measure, don't guess</b><span>The faint quarter scored 86.0%, better than the rest. Choose slices first, then measure.</span></div>
+      <div class="cheat-item"><b>Shift is a test suite</b><span>Flip, 2 px, quarter turn, dim. Five lines of numpy, run on the first baseline.</span></div>
+      <div class="cheat-item"><b>Read confidence next to accuracy</b><span>Quarter turn: 5.1% right at 83.7% confidence. A confidence gate would not catch it.</span></div>
+      <div class="cheat-item"><b>ECE</b><span>10 bins by confidence, weighted gap between accuracy and confidence. 0 is honest; clean 0.022, turned 0.786.</span></div>
+      <div class="cheat-item"><b>IoU must exceed 0.5</b><span>Overlap over union. 0.500 is a miss at VOC; COCO's strict bar is 0.75; ask which one a vendor used.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>You now have five pages of Corvane's vision plan: the image card, the feature choice, the baseline and its error table, the labelling budget, and tonight's evaluation slices. Session 6 turns them into a signed scope note: what the feature will do, on which images, at what label cost, with which failures accepted in writing. It also lays out the published disagreement about active learning, side by side, without pretending the literature has settled it.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 5 of 6 · learn-computer-vision-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="04-the-label-budget-bench.html">← Prev: The label budget bench</a> &nbsp;·&nbsp; <a href="06-scope-the-vision-feature.html">Next: Scope the vision feature →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/cvf-sample.js?v=1"></script>
+<script src="../assets/cvf-live.js?v=2"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

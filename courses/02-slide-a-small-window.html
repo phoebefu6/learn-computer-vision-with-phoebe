@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 2 of 6. Convolution is nine weights, multiplied and summed, slid across every position of an image. Edge, blur and sharpen kernels on real Fashion-MNIST pixels, output-size arithmetic, pooling, and the 288-number feature layer the label budget bench uses. Computed in your browser and in numpy.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Slide a small window: convolution - learn computer vision with phoebe">
+<meta property="og:description" content="Session 2 of 6. On a real pair of trousers a vertical-edge kernel finds 228 strong responses and a horizontal one finds 44. On a sneaker it flips: 72 and 182.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/courses/02-slide-a-small-window.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Slide a small window: convolution - learn computer vision with phoebe">
+<meta name="twitter:description" content="Session 2 of 6. Kernels as weighted sums, edges and blur on real pixels, stride, padding, pooling, and the feature layer behind the bench.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 2 · Slide a small window: convolution - learn computer vision with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-computer-vision-with-phoebe</a> / Session 2 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Computer Vision Foundations with Phoebe · Session 2 of 6</div>
+    <h1>Slide a small <span class="accent">window</span>: convolution</h1>
+    <p class="sub">Session 1 ended with a problem: flattened into a row of 784, an image forgets which pixel sat next to which. Convolution puts the neighbours back. A small window of nine weights sits over a 3 x 3 patch, multiplies, sums, writes one number, and slides one step. Do that at every position and you have a new grid that answers one question everywhere at once: is there a vertical edge here? Tonight we compute that by hand on a real pair of trousers, watch four kernels disagree about the same pixels, and build the exact 288-number feature layer the label budget bench runs on.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Core</span>
+      <span class="chip audience">Analysts and data scientists new to images</span>
+      <span class="chip audience">Python, numpy</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-18 · Kernels, edges, pooling</span>
+      <span class="a3" style="flex:5">18-40 · Build-along: Corvane's feature choice</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>From a row of numbers back to a neighbourhood</h2>
+    </div>
+    <p class="lede">You have an image card for Corvane, the constructed recycling plant with one camera over one sorting line. The teaching images are still Fashion-MNIST garments standing in for textiles on the line, not waste photos. Tonight's question is the one every vision feature starts with: <strong>which local patterns in the grid are worth measuring, and what does measuring them throw away?</strong></p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+      <span class="pill">★ Build-along = run the code yourself</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> The ability to compute one convolution output cell by hand and check it against code, a feel for what edge, blur and sharpen kernels respond to on real pixels, the output-size arithmetic that stops shape bugs before they start, a numpy feature layer that turns a garment into 288 numbers, and page 2 of Corvane's vision plan (constructed Corvane example): the feature choice, including what those features cannot see.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers kernels as weighted sums</span>
+      <h2>Nine weights, multiplied and summed</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Take Fashion-MNIST test image 2, a pair of trousers, and put a 3 x 3 window over rows 16 to 18, columns 10 to 12: the inner edge of the left leg, where cloth gives way to the gap between the legs. The vertical-edge kernel has nine weights. Multiply each pixel by the weight on top of it, add the nine products, divide by 4, take the absolute value. That is one output cell. Everything else in convolution is doing this again, one step to the right.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 408" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A real 3 by 3 patch from the Trouser, rows 16 to 18 and columns 10 to 12, values 237 242 113, 239 245 151, 245 238 198, under the vertical-edge kernel minus 1 0 1, minus 2 0 2, minus 1 0 1. The nine products are minus 237, 0, 113, minus 478, 0, 302, minus 245, 0, 198. They sum to minus 347, divided by 4 is minus 86.75, absolute value 86.75 in one output cell. Sliding the window one column right gives 242.5.">
+        <defs>
+          <filter id="s2aSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="53" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s2aHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s2aAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s2aH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s2aL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s2aS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s2aB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s2aV { font: 800 16px Inter, sans-serif; fill: #6A0055; }
+          .s2aN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s2aH" x="40" y="26">ONE OUTPUT CELL: NINE PRODUCTS, ONE SUM</text>
+
+        <g filter="url(#s2aSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- the real patch -->
+          <rect x="40" y="64" width="132" height="132" rx="4" transform="rotate(-0.5 106 130)" fill="#FCEEF8"/>
+          <path d="M84 64 L84 196 M128 64 L128 196 M40 108 L172 108 M40 152 L172 152" stroke="#D6C4CF" stroke-width="1.2"/>
+          <!-- the kernel -->
+          <rect x="210" y="64" width="132" height="132" rx="4" transform="rotate(0.5 276 130)" fill="#FFFFFF"/>
+          <path d="M254 64 L254 196 M298 64 L298 196 M210 108 L342 108 M210 152 L342 152" stroke="#D6C4CF" stroke-width="1.2"/>
+          <!-- the products -->
+          <rect x="378" y="64" width="156" height="132" rx="4" transform="rotate(-0.4 456 130)" fill="#FFFFFF"/>
+          <path d="M430 64 L430 196 M482 64 L482 196 M378 108 L534 108 M378 152 L534 152" stroke="#D6C4CF" stroke-width="1.2"/>
+          <path d="M542 130 L588 130" marker-end="url(#s2aAr)"/>
+          <!-- the sum -->
+          <rect x="596" y="64" width="244" height="132" rx="8" transform="rotate(0.4 718 130)" fill="#FFFFFF"/>
+          <rect x="612" y="144" width="96" height="40" rx="6" fill="#5FD3DC" stroke="#005961"/>
+          <!-- sliding strip -->
+          <rect x="40" y="262" width="200" height="90" rx="4" transform="rotate(-0.4 140 307)" fill="#FFFFFF"/>
+          <path d="M80 262 L80 352 M120 262 L120 352 M160 262 L160 352 M200 262 L200 352 M40 292 L240 292 M40 322 L240 322" stroke="#D6C4CF" stroke-width="1.2"/>
+          <path d="M78 258 L202 258 L202 356 L78 356 Z" stroke="#005961" stroke-width="2.5"/>
+          <path d="M117 254 L244 254 L244 360 L117 360 Z" stroke="#AD008B" stroke-dasharray="6 5"/>
+          <path d="M254 306 L318 306" marker-end="url(#s2aAr)"/>
+          <rect x="326" y="286" width="88" height="40" rx="6" transform="rotate(-1.5 370 306)" fill="#FCEEF8" stroke="#005961"/>
+          <rect x="426" y="286" width="88" height="40" rx="6" transform="rotate(1.5 470 306)" fill="#FCEEF8" stroke="#AD008B"/>
+        </g>
+
+        <text class="s2aS" x="40" y="56">the patch, rows 16-18</text>
+        <text class="s2aS" x="210" y="56">vertical-edge kernel</text>
+        <text class="s2aS" x="378" y="56">nine products</text>
+        <text class="s2aS" x="596" y="56">one output cell</text>
+
+        <text class="s2aL" x="62" y="90" text-anchor="middle">237</text>
+        <text class="s2aL" x="106" y="90" text-anchor="middle">242</text>
+        <text class="s2aL" x="150" y="90" text-anchor="middle">113</text>
+        <text class="s2aL" x="62" y="134" text-anchor="middle">239</text>
+        <text class="s2aL" x="106" y="134" text-anchor="middle">245</text>
+        <text class="s2aL" x="150" y="134" text-anchor="middle">151</text>
+        <text class="s2aL" x="62" y="178" text-anchor="middle">245</text>
+        <text class="s2aL" x="106" y="178" text-anchor="middle">238</text>
+        <text class="s2aL" x="150" y="178" text-anchor="middle">198</text>
+
+        <text class="s2aV" x="191" y="136" text-anchor="middle">x</text>
+
+        <text class="s2aL" x="232" y="90" text-anchor="middle">-1</text>
+        <text class="s2aL" x="276" y="90" text-anchor="middle">0</text>
+        <text class="s2aL" x="320" y="90" text-anchor="middle">1</text>
+        <text class="s2aL" x="232" y="134" text-anchor="middle">-2</text>
+        <text class="s2aL" x="276" y="134" text-anchor="middle">0</text>
+        <text class="s2aL" x="320" y="134" text-anchor="middle">2</text>
+        <text class="s2aL" x="232" y="178" text-anchor="middle">-1</text>
+        <text class="s2aL" x="276" y="178" text-anchor="middle">0</text>
+        <text class="s2aL" x="320" y="178" text-anchor="middle">1</text>
+
+        <text class="s2aV" x="360" y="136" text-anchor="middle">=</text>
+
+        <text class="s2aL" x="404" y="90" text-anchor="middle">-237</text>
+        <text class="s2aL" x="456" y="90" text-anchor="middle">0</text>
+        <text class="s2aL" x="508" y="90" text-anchor="middle">113</text>
+        <text class="s2aL" x="404" y="134" text-anchor="middle">-478</text>
+        <text class="s2aL" x="456" y="134" text-anchor="middle">0</text>
+        <text class="s2aL" x="508" y="134" text-anchor="middle">302</text>
+        <text class="s2aL" x="404" y="178" text-anchor="middle">-245</text>
+        <text class="s2aL" x="456" y="178" text-anchor="middle">0</text>
+        <text class="s2aL" x="508" y="178" text-anchor="middle">198</text>
+
+        <text class="s2aL" x="612" y="88">add the nine: -347</text>
+        <text class="s2aL" x="612" y="110">divide by 4: -86.75</text>
+        <text class="s2aL" x="612" y="132">take the absolute value</text>
+        <text class="s2aV" x="660" y="170" text-anchor="middle">86.75</text>
+        <text class="s2aB" x="720" y="160">one cell of the</text>
+        <text class="s2aB" x="720" y="176">26 x 26 output</text>
+
+        <text class="s2aS" x="40" y="214">Trouser, Fashion-MNIST test image 2</text>
+        <text class="s2aS" x="378" y="214">the middle column weighs 0</text>
+
+        <text class="s2aH" x="40" y="242">THE WINDOW SLIDES ONE COLUMN RIGHT</text>
+        <text class="s2aL" x="60" y="281" text-anchor="middle">227</text>
+        <text class="s2aL" x="100" y="281" text-anchor="middle">237</text>
+        <text class="s2aL" x="140" y="281" text-anchor="middle">242</text>
+        <text class="s2aL" x="180" y="281" text-anchor="middle">113</text>
+        <text class="s2aL" x="220" y="281" text-anchor="middle">0</text>
+        <text class="s2aL" x="60" y="311" text-anchor="middle">204</text>
+        <text class="s2aL" x="100" y="311" text-anchor="middle">239</text>
+        <text class="s2aL" x="140" y="311" text-anchor="middle">245</text>
+        <text class="s2aL" x="180" y="311" text-anchor="middle">151</text>
+        <text class="s2aL" x="220" y="311" text-anchor="middle">0</text>
+        <text class="s2aL" x="60" y="341" text-anchor="middle">151</text>
+        <text class="s2aL" x="100" y="341" text-anchor="middle">245</text>
+        <text class="s2aL" x="140" y="341" text-anchor="middle">238</text>
+        <text class="s2aL" x="180" y="341" text-anchor="middle">198</text>
+        <text class="s2aL" x="220" y="341" text-anchor="middle">0</text>
+        <text class="s2aS" x="40" y="378">columns 9 to 13 of rows 16-18</text>
+
+        <text class="s2aS" x="370" y="278" text-anchor="middle">at col 10</text>
+        <text class="s2aS" x="470" y="278" text-anchor="middle">at col 11</text>
+        <text class="s2aV" x="370" y="312" text-anchor="middle">86.75</text>
+        <text class="s2aV" x="470" y="312" text-anchor="middle">242.5</text>
+        <text class="s2aB" x="370" y="346" text-anchor="middle">solid window</text>
+        <text class="s2aS" x="470" y="346" text-anchor="middle">dashed window</text>
+
+        <text class="s2aS" x="548" y="284">One step right: the left weights (-1, -2, -1)</text>
+        <text class="s2aS" x="548" y="300">now sit on bright cloth and the right weights</text>
+        <text class="s2aS" x="548" y="316">(1, 2, 1) on the empty gap between the legs.</text>
+        <text class="s2aS" x="548" y="332">The response jumps from 86.75 to 242.5.</text>
+        <text class="s2aS" x="548" y="348">That is what a vertical edge looks like.</text>
+
+        <text class="s2aN" x="40" y="398">No flip of the kernel: strictly this is cross-correlation, which every library calls convolution.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - every number is a real pixel or product from the Trouser; the build-along prints the same 86.75 and 242.5</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Cross-correlation, and why libraries call it convolution<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>In the mathematical definition of convolution, the kernel is flipped top-to-bottom and left-to-right before it slides. What you just did, and what every deep learning library does, skips the flip. That operation has its own name, cross-correlation. Goodfellow, Bengio and Courville say it plainly in <em>Deep Learning</em>, section 9.1: "Many machine learning libraries implement cross-correlation but call it convolution".</p>
+        <p>Why nobody minds: when the kernel's weights are learned, the network simply learns the flipped version, and the results are identical. It matters only when you copy a hand-made kernel from a textbook into code. A vertical-edge kernel flipped left-to-right is the same kernel with its sign reversed, so a positive response becomes a negative one. That is one reason the widget and the build-along take the absolute value: they report edge strength, not edge direction.</p>
+        <p>Check yourself before the widget: the patch above gives -347 before dividing. Which side of the patch is brighter? The left (237, 239, 245 against 113, 151, 198), so the kernel, which weighs right minus left, comes out negative.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Sparse interactions and parameter sharing<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Section 9.2 of Goodfellow et al. says convolution "leverages three important ideas": sparse interactions, parameter sharing and equivariant representations. All three are visible in one picture.</p>
+        <p><strong>Sparse interactions.</strong> Each output cell looks at 9 of the 784 input pixels, never the rest. The cell at row 16, column 10 has no idea what the trouser waistband looks like.</p>
+        <p><strong>Parameter sharing.</strong> The same nine weights are reused at all 676 positions of the 26 x 26 output. The kernel that finds the inner edge of the left leg finds the outer edge of the right leg with no extra weights. That is why the widget's readout says "9, reused at every position".</p>
+        <p><strong>Equivariance.</strong> Shift the trousers two pixels right and the edge map shifts two pixels right with it: the responses move, they do not change. Part 3 shows what pooling adds on top of that, and what it does not.</p>
+        <p>How much this saves against a layer that connects every pixel to every output is a parameter count, and Part 3 points to where that count lives. Here the point is smaller and more practical: one kernel, nine numbers, the same question asked everywhere.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Nine weights over a full camera frame (constructed Corvane example).</strong> Corvane's camera, as constructed in session 1, takes 1280 x 720 frames. A 3 x 3 kernel with no padding fits at 1278 x 718 = 917,604 positions per channel, and it uses the same nine weights at every one of them. The cost of a kernel grows with the image; the number of things it can learn does not. That is why a kernel tuned on 28 x 28 garments can be run on a full frame at all, and also why it will happily fire on anything in the frame with the same local pattern, including things that are not items.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers edges, blur and sharpen on real pixels</span>
+      <h2>What each kernel responds to</h2>
+      <span class="tag concept">6 min live</span>
+    </div>
+    <p class="lede">Change the nine weights and you ask the pixels a different question. A vertical-edge kernel asks "does brightness change left to right here?", a horizontal one asks "top to bottom?", a box blur asks "what is the local average?", and a sharpen kernel asks "how much does this pixel stand out from its four neighbours?". Run all four on the same real images and the answers disagree in ways that tell you what the garment is shaped like.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 358" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four panels, one per kernel, each with its nine weights and real widget readouts. Vertical edge divided by 4: Trouser 228 positions above 40, Sneaker 72. Horizontal edge divided by 4: Trouser 44, Sneaker 182, highlighted. Box blur divided by 9: Trouser strongest 247.2, T-shirt 162.1. Sharpen divided by 1: T-shirt strongest 824.0, Trouser 680.0, outside the 0 to 255 range.">
+        <defs>
+          <filter id="s2bSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="61" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s2bHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s2bAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s2bH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s2bL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s2bS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s2bV { font: 800 16px Inter, sans-serif; fill: #6A0055; }
+          .s2bA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s2bN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s2bH" x="30" y="28">FOUR KERNELS, FOUR DIFFERENT QUESTIONS ASKED OF THE SAME PIXELS</text>
+
+        <g filter="url(#s2bSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="30" y="46" width="190" height="272" rx="10" transform="rotate(-0.4 125 182)" fill="#FFFFFF"/>
+          <rect x="240" y="46" width="190" height="272" rx="10" transform="rotate(0.4 335 182)" fill="#FFFFFF"/>
+          <rect x="450" y="46" width="190" height="272" rx="10" transform="rotate(-0.3 545 182)" fill="#FFFFFF"/>
+          <rect x="660" y="46" width="190" height="272" rx="10" transform="rotate(0.3 755 182)" fill="#FFFFFF"/>
+          <!-- kernel grids -->
+          <path d="M44 82 L134 82 L134 172 L44 172 Z M74 82 L74 172 M104 82 L104 172 M44 112 L134 112 M44 142 L134 142" fill="#FCEEF8"/>
+          <path d="M254 82 L344 82 L344 172 L254 172 Z M284 82 L284 172 M314 82 L314 172 M254 112 L344 112 M254 142 L344 142" fill="#FCEEF8"/>
+          <path d="M464 82 L554 82 L554 172 L464 172 Z M494 82 L494 172 M524 82 L524 172 M464 112 L554 112 M464 142 L554 142" fill="#FCEEF8"/>
+          <path d="M674 82 L764 82 L764 172 L674 172 Z M704 82 L704 172 M734 82 L734 172 M674 112 L764 112 M674 142 L764 142" fill="#FCEEF8"/>
+          <!-- readout tiles -->
+          <rect x="42" y="186" width="166" height="44" rx="6" transform="rotate(0.6 125 208)" fill="#FFFFFF" stroke="#D6C4CF"/>
+          <rect x="42" y="238" width="166" height="44" rx="6" transform="rotate(-0.6 125 260)" fill="#FFFFFF" stroke="#D6C4CF"/>
+          <rect x="252" y="186" width="166" height="44" rx="6" transform="rotate(-0.6 335 208)" fill="#FFFFFF" stroke="#D6C4CF"/>
+          <rect x="252" y="238" width="166" height="44" rx="6" transform="rotate(0.6 335 260)" fill="#5FD3DC" stroke="#005961"/>
+          <rect x="462" y="186" width="166" height="44" rx="6" transform="rotate(0.5 545 208)" fill="#FFFFFF" stroke="#D6C4CF"/>
+          <rect x="462" y="238" width="166" height="44" rx="6" transform="rotate(-0.5 545 260)" fill="#FFFFFF" stroke="#D6C4CF"/>
+          <rect x="672" y="186" width="166" height="44" rx="6" transform="rotate(-0.5 755 208)" fill="#FFFFFF" stroke="#D6C4CF"/>
+          <rect x="672" y="238" width="166" height="44" rx="6" transform="rotate(0.5 755 260)" fill="#FFFFFF" stroke="#D6C4CF"/>
+        </g>
+
+        <!-- panel 1: vertical edge -->
+        <text class="s2bH" x="44" y="70">VERTICAL EDGE</text>
+        <text class="s2bL" x="59" y="101" text-anchor="middle">-1</text>
+        <text class="s2bL" x="89" y="101" text-anchor="middle">0</text>
+        <text class="s2bL" x="119" y="101" text-anchor="middle">1</text>
+        <text class="s2bL" x="59" y="131" text-anchor="middle">-2</text>
+        <text class="s2bL" x="89" y="131" text-anchor="middle">0</text>
+        <text class="s2bL" x="119" y="131" text-anchor="middle">2</text>
+        <text class="s2bL" x="59" y="161" text-anchor="middle">-1</text>
+        <text class="s2bL" x="89" y="161" text-anchor="middle">0</text>
+        <text class="s2bL" x="119" y="161" text-anchor="middle">1</text>
+        <text class="s2bS" x="146" y="122">then divide</text>
+        <text class="s2bS" x="146" y="138">by 4</text>
+        <text class="s2bS" x="52" y="203">Trouser, above 40</text>
+        <text class="s2bV" x="52" y="223">228</text>
+        <text class="s2bS" x="52" y="255">Sneaker, above 40</text>
+        <text class="s2bV" x="52" y="275">72</text>
+        <text class="s2bA" x="44" y="304">left-right change</text>
+
+        <!-- panel 2: horizontal edge -->
+        <text class="s2bH" x="254" y="70">HORIZONTAL EDGE</text>
+        <text class="s2bL" x="269" y="101" text-anchor="middle">-1</text>
+        <text class="s2bL" x="299" y="101" text-anchor="middle">-2</text>
+        <text class="s2bL" x="329" y="101" text-anchor="middle">-1</text>
+        <text class="s2bL" x="269" y="131" text-anchor="middle">0</text>
+        <text class="s2bL" x="299" y="131" text-anchor="middle">0</text>
+        <text class="s2bL" x="329" y="131" text-anchor="middle">0</text>
+        <text class="s2bL" x="269" y="161" text-anchor="middle">1</text>
+        <text class="s2bL" x="299" y="161" text-anchor="middle">2</text>
+        <text class="s2bL" x="329" y="161" text-anchor="middle">1</text>
+        <text class="s2bS" x="356" y="122">then divide</text>
+        <text class="s2bS" x="356" y="138">by 4</text>
+        <text class="s2bS" x="262" y="203">Trouser, above 40</text>
+        <text class="s2bV" x="262" y="223">44</text>
+        <text class="s2bS" x="262" y="255">Sneaker, above 40</text>
+        <text class="s2bV" x="262" y="275">182</text>
+        <text class="s2bA" x="254" y="304">up-down change: the sole</text>
+
+        <!-- panel 3: box blur -->
+        <text class="s2bH" x="464" y="70">BOX BLUR</text>
+        <text class="s2bL" x="479" y="101" text-anchor="middle">1</text>
+        <text class="s2bL" x="509" y="101" text-anchor="middle">1</text>
+        <text class="s2bL" x="539" y="101" text-anchor="middle">1</text>
+        <text class="s2bL" x="479" y="131" text-anchor="middle">1</text>
+        <text class="s2bL" x="509" y="131" text-anchor="middle">1</text>
+        <text class="s2bL" x="539" y="131" text-anchor="middle">1</text>
+        <text class="s2bL" x="479" y="161" text-anchor="middle">1</text>
+        <text class="s2bL" x="509" y="161" text-anchor="middle">1</text>
+        <text class="s2bL" x="539" y="161" text-anchor="middle">1</text>
+        <text class="s2bS" x="566" y="122">then divide</text>
+        <text class="s2bS" x="566" y="138">by 9</text>
+        <text class="s2bS" x="472" y="203">Trouser, strongest</text>
+        <text class="s2bV" x="472" y="223">247.2</text>
+        <text class="s2bS" x="472" y="255">T-shirt, strongest</text>
+        <text class="s2bV" x="472" y="275">162.1</text>
+        <text class="s2bA" x="464" y="304">averages, softens edges</text>
+
+        <!-- panel 4: sharpen -->
+        <text class="s2bH" x="674" y="70">SHARPEN</text>
+        <text class="s2bL" x="689" y="101" text-anchor="middle">0</text>
+        <text class="s2bL" x="719" y="101" text-anchor="middle">-1</text>
+        <text class="s2bL" x="749" y="101" text-anchor="middle">0</text>
+        <text class="s2bL" x="689" y="131" text-anchor="middle">-1</text>
+        <text class="s2bL" x="719" y="131" text-anchor="middle">5</text>
+        <text class="s2bL" x="749" y="131" text-anchor="middle">-1</text>
+        <text class="s2bL" x="689" y="161" text-anchor="middle">0</text>
+        <text class="s2bL" x="719" y="161" text-anchor="middle">-1</text>
+        <text class="s2bL" x="749" y="161" text-anchor="middle">0</text>
+        <text class="s2bS" x="776" y="122">then divide</text>
+        <text class="s2bS" x="776" y="138">by 1</text>
+        <text class="s2bS" x="682" y="203">T-shirt, strongest</text>
+        <text class="s2bV" x="682" y="223">824.0</text>
+        <text class="s2bS" x="682" y="255">Trouser, strongest</text>
+        <text class="s2bV" x="682" y="275">680.0</text>
+        <text class="s2bA" x="674" y="304">leaves the 0 to 255 range</text>
+
+        <text class="s2bN" x="30" y="344">Counts are of 676 output positions, absolute value, before pooling: exactly what the widget prints.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - trousers light up the vertical kernel, sneakers the horizontal one: edge direction already separates classes</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Try it: four clicks, four answers<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The widget below holds the same 20 real Fashion-MNIST test images as session 1, at full 28 x 28 size. It opens on the Trouser with the vertical-edge kernel. Read the readout: output 26 x 26, strongest response 255.0, <strong>228</strong> positions above 40.</p>
+        <p>Now click, in this order:</p>
+        <p><strong>1. horizontal edge</strong> (Trouser still selected): the count drops to <strong>44</strong>. Trousers are two long vertical tubes; there is very little top-to-bottom change except the waistband and the hems.</p>
+        <p><strong>2. the Sneaker thumbnail</strong>, horizontal edge still on: <strong>182</strong>. Then back to vertical edge: <strong>72</strong>. The sole is one long horizontal edge, and the kernels say so without anyone telling them what a shoe is.</p>
+        <p><strong>3. the T-shirt, then sharpen</strong>: strongest response <strong>824.0</strong>. The input lives between 0 and 255; the output does not. A centre weight of 5 against four weights of -1 can amplify a bright pixel on a dark rim far beyond the ceiling. The picture caps at 255 for display, the number does not.</p>
+        <p><strong>4. 2x2 max pool: on.</strong> The output shrinks to 13 x 13. Keep that button in mind for Part 3.</p>
+      </div>
+    </details>
+
+    <div id="cvf-conv"></div>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why the divisor, and why a response can leave the range<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Each kernel's weights decide the range of its output. The box blur's nine weights sum to 9, so dividing by 9 makes it an average: it can never leave 0 to 255, and on the Trouser it peaks at 247.2. The edge kernels' positive weights sum to 4 and their negative weights to -4, so dividing by 4 maps a perfect black-to-white step to exactly 255, which is the Trouser's strongest vertical response.</p>
+        <p>The sharpen kernel's weights sum to 1, so a flat patch comes out unchanged, but it is not an average. Its range runs from -1,020 to 1,275 on 8-bit input. On the T-shirt it reaches 824.0, on the Sandal 854.0. Any pipeline that writes that back into <code>uint8</code> without thinking either clips it (detail lost) or wraps it (session 1's bug, in a new place). Decide the scaling before the kernel, and write it down next to the kernel.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The belt seam that looks like an item (constructed Corvane example).</strong> Corvane's conveyor belt is made of joined sections. Wherever two sections meet there is a seam running straight across the belt, and under the camera it is a strong horizontal edge in every frame where it passes, item or no item. A horizontal-edge feature cannot tell a seam from the sole of a shoe or the hem of a jacket: both are "brightness changes top to bottom". On Fashion-MNIST this never shows up, because the background is an exact 0 everywhere. On the line it is the first thing an edge feature finds. Write the belt into the image card's "is not" field, and test a frame with no item on it before trusting any edge count.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers stride, padding, pooling, learned kernels</span>
+      <h2>Stride, padding, pooling, and kernels that learn</h2>
+      <span class="tag concept">4 min live</span>
+    </div>
+    <p class="lede">Three settings decide the shape of what comes out: whether the image gets a border of zeros (padding), how far the window jumps each step (stride), and whether neighbouring outputs are then merged (pooling). Shape bugs in vision code are nearly always one of these three, and all three are one line of arithmetic.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four cases drawn as grids to scale. A 28 by 28 image under a 3 by 3 kernel with no padding gives 26 by 26. With one ring of zero padding it stays 28 by 28. With stride 2 it gives 13 by 13. A 2 by 2 max pool turns 26 by 26 into 13 by 13; on real values from the trouser edge map, 86.75, 242.5, 45.5 and 238.5, it keeps 242.5.">
+        <defs>
+          <filter id="s2cSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="67" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s2cHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s2cAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s2cH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s2cL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s2cS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s2cB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s2cN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s2cH" x="30" y="28">OUTPUT SIZE IS ARITHMETIC: FOUR CASES, DRAWN TO SCALE</text>
+
+        <g filter="url(#s2cSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- case 1: no padding -->
+          <rect x="40" y="72" width="70" height="70" rx="2" transform="rotate(-0.8 75 107)" fill="url(#s2cHc)"/>
+          <path d="M40 72 L48 72 L48 80 L40 80 Z" stroke="#005961"/>
+          <path d="M116 107 L136 107" marker-end="url(#s2cAr)"/>
+          <rect x="142" y="75" width="65" height="65" rx="2" transform="rotate(0.8 174 107)" fill="#FFFFFF"/>
+          <!-- case 2: padding 1 -->
+          <path d="M245 67 L325 67 L325 147 L245 147 Z" stroke="#C7339F" stroke-dasharray="5 4"/>
+          <rect x="250" y="72" width="70" height="70" rx="2" transform="rotate(0.8 285 107)" fill="url(#s2cHc)"/>
+          <path d="M330 107 L346 107" marker-end="url(#s2cAr)"/>
+          <rect x="352" y="72" width="70" height="70" rx="2" transform="rotate(-0.8 387 107)" fill="#FFFFFF"/>
+          <!-- case 3: stride 2 -->
+          <rect x="460" y="72" width="70" height="70" rx="2" transform="rotate(-0.6 495 107)" fill="url(#s2cHc)"/>
+          <path d="M460 72 L468 72 L468 80 L460 80 Z" stroke="#005961"/>
+          <path d="M465 72 L473 72 L473 80 L465 80 Z" stroke="#005961" stroke-dasharray="2 2"/>
+          <path d="M536 107 L556 107" marker-end="url(#s2cAr)"/>
+          <rect x="562" y="91" width="32" height="32" rx="2" transform="rotate(1 578 107)" fill="#FFFFFF"/>
+          <!-- case 4: max pool -->
+          <rect x="670" y="75" width="65" height="65" rx="2" transform="rotate(0.6 702 107)" fill="#FCEEF8"/>
+          <path d="M741 107 L766 107" marker-end="url(#s2cAr)"/>
+          <rect x="772" y="91" width="32" height="32" rx="2" transform="rotate(-1 788 107)" fill="#FFFFFF"/>
+          <rect x="670" y="192" width="100" height="56" rx="4" transform="rotate(-0.6 720 220)" fill="#FFFFFF"/>
+          <path d="M720 192 L720 248 M670 220 L770 220" stroke="#D6C4CF" stroke-width="1.2"/>
+          <path d="M776 220 L794 220" marker-end="url(#s2cAr)"/>
+          <rect x="798" y="206" width="52" height="28" rx="4" fill="#5FD3DC" stroke="#005961"/>
+        </g>
+
+        <text class="s2cH" x="40" y="56">NO PADDING</text>
+        <text class="s2cS" x="40" y="160">28 x 28</text>
+        <text class="s2cS" x="142" y="160">26 x 26</text>
+        <text class="s2cL" x="40" y="182">28 - 3 + 1 = 26</text>
+        <text class="s2cS" x="40" y="202">the 3 x 3 window cannot</text>
+        <text class="s2cS" x="40" y="218">centre on the outer rim</text>
+
+        <text class="s2cH" x="250" y="56">PADDING 1</text>
+        <text class="s2cS" x="250" y="164">28 + zero ring</text>
+        <text class="s2cS" x="352" y="164">28 x 28</text>
+        <text class="s2cL" x="250" y="182">30 - 3 + 1 = 28</text>
+        <text class="s2cS" x="250" y="202">one ring of zeros keeps</text>
+        <text class="s2cS" x="250" y="218">the size at 28</text>
+
+        <text class="s2cH" x="460" y="56">STRIDE 2</text>
+        <text class="s2cS" x="460" y="160">28 x 28</text>
+        <text class="s2cS" x="562" y="160">13 x 13</text>
+        <text class="s2cL" x="460" y="182">floor(25 / 2) + 1 = 13</text>
+        <text class="s2cS" x="460" y="202">the window jumps two</text>
+        <text class="s2cS" x="460" y="218">pixels at each step</text>
+
+        <text class="s2cH" x="670" y="56">2 x 2 MAX POOL</text>
+        <text class="s2cS" x="670" y="160">26 x 26</text>
+        <text class="s2cS" x="772" y="160">13 x 13</text>
+        <text class="s2cL" x="670" y="182">26 / 2 = 13</text>
+        <text class="s2cL" x="695" y="211" text-anchor="middle">86.75</text>
+        <text class="s2cL" x="745" y="211" text-anchor="middle">242.5</text>
+        <text class="s2cL" x="695" y="239" text-anchor="middle">45.5</text>
+        <text class="s2cL" x="745" y="239" text-anchor="middle">238.5</text>
+        <text class="s2cL" x="824" y="225" text-anchor="middle">242.5</text>
+        <text class="s2cB" x="670" y="268">keeps the strongest of four</text>
+        <text class="s2cS" x="670" y="284">real values, rows 16-17</text>
+
+        <text class="s2cN" x="30" y="314">General rule: output = floor((input + 2 x padding - kernel) / stride) + 1.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - padding protects the size, stride and pooling halve it; pooling keeps the loudest of four and forgets where it was</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Pooling buys tolerance to small shifts, not to everything<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Max pooling replaces each 2 x 2 block with its largest value. In the figure, the block from the trouser edge map holds 86.75, 242.5, 45.5 and 238.5, and only 242.5 survives. If the trousers moved one pixel, the strong edge would still be somewhere in that block most of the time, and the pooled value would barely change. Goodfellow et al., section 9.3, put it this way: pooling makes the representation "approximately invariant to small translations of the input".</p>
+        <p>Read the words carefully: <em>approximately</em>, <em>small</em>, <em>translations</em>. Pooling does nothing for a flip. Mirror a sneaker and its toe moves from one side of the image to the other, far beyond what any 2 x 2 block can absorb. The vertical-edge map is mirrored too, and every pooled number lands in a different place. Session 5 measures exactly that on the bench's model and watches shoes fail.</p>
+        <p>Turn the widget's pool button on and off on the Trouser: the picture halves, the strong edges stay visible, and their exact positions blur into blocks. That is the trade, written in pixels.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why a learned kernel beats a hand-made one<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Every kernel on this page was chosen by a person. The bench's feature layer uses eight of them: Sobel-style edges in four directions (vertical, horizontal and two diagonals), each split into a positive and a negative half. They are a sensible guess at what matters, and the bench shows the guess is decent: in session 4 they reach 75.8% at 300 labels against 74.8% for raw pixels.</p>
+        <p>A convolutional network does not guess. It starts with random weights and adjusts them by gradient descent until the kernels are whatever helps the task. Yosinski, Clune, Bengio and Lipson (2014) looked at what those first-layer kernels become and report, in their abstract, that they resemble Gabor filters and colour blobs, and that they are general: similar across datasets and tasks. Gabor filters are oriented edge and stripe detectors at several scales, which is the hand-made Sobel idea done more finely and in more directions, and learned colour blobs are something greyscale Sobel kernels cannot express at all. The bench's eight kernels are exactly what learning would replace.</p>
+        <p>Training those kernels needs backpropagation through the convolution and a training loop; both have their own sessions, and the architectures that stack learned kernels, with their parameter counts, are in <a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/courses/04-seeing-and-embedding.html">Deep Learning session 4 ↗</a>. The professional habit worth keeping from here: when a hand-made feature underperforms, the first question is not "which kernel next?" but "should the kernels be learned, and do I have the labels to learn them?". Session 4 puts a number on the second half.</p>
+        <p>Further reading on linear filtering in general: Szeliski, <em>Computer Vision: Algorithms and Applications</em>, 2nd ed. (2022), reported.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Why pretrained networks travel.</strong> The Yosinski et al. result is the reason transfer learning works in practice. If the first layers of a network trained on a large, general dataset have already learned general edge and blob detectors, a team with a few hundred labelled images of its own does not need to learn those layers again: it can reuse them and spend its scarce labels on the last, specific layers. The same paper reports that features become more specific to the original task by the last layer, so how much to reuse is itself a decision. Session 6 brings this to Corvane's scope note (constructed Corvane example).</p>
+    </div>
+  </section>
+
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Corvane's feature choice, kernel by kernel</h2>
+      <span class="tag demo">★ 22 min · everyone builds</span>
+    </div>
+    <p class="lede">Six steps in plain numpy, starting from session 1's loader. You write convolution yourself, check it against the widget to the last digit, then build the bench's feature layer and decide what goes on <strong>page 2 of Corvane's vision plan</strong> (constructed Corvane example). Every number printed below is what the code produced on the real Fashion-MNIST files. Two kinds of number appear: the edge counts (228, 44, 72, 182) are the widget's own canon on full-size images and must match exactly; the summed feature values in step 5 are build-along numbers from your run on full-size pixels, while the bench computes its 288 features on its own 16-level 14 x 14 sample.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The feature pipeline as six boxes: a 28 by 28 image of 784 numbers, shrunk to 14 by 14 by averaging 2 by 2 blocks, 8 kernels from 4 directions with plus and minus halves, ReLU keeping positives in 8 maps of 12 by 12, a 2 by 2 max pool to 8 maps of 6 by 6, and 288 features. Below, build-along sums: Trouser vertical 5,170 against horizontal 1,005; Sneaker vertical 1,098 against horizontal 2,555; and what the features cannot see: colour, and anything under a 2 by 2 block.">
+        <defs>
+          <filter id="s2dSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="71" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s2dHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s2dAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s2dH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s2dS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s2dA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s2dV { font: 800 16px Inter, sans-serif; fill: #6A0055; }
+          .s2dN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s2dH" x="16" y="30">THE BENCH'S FEATURE LAYER, ONE STAGE AT A TIME</text>
+
+        <g filter="url(#s2dSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="16" y="50" width="128" height="96" rx="8" transform="rotate(-0.6 80 98)" fill="url(#s2dHc)"/>
+          <rect x="160" y="50" width="128" height="96" rx="8" transform="rotate(0.6 224 98)" fill="#FFFFFF"/>
+          <rect x="304" y="50" width="128" height="96" rx="8" transform="rotate(-0.5 368 98)" fill="#FFFFFF"/>
+          <rect x="448" y="50" width="128" height="96" rx="8" transform="rotate(0.5 512 98)" fill="#FFFFFF"/>
+          <rect x="592" y="50" width="128" height="96" rx="8" transform="rotate(-0.6 656 98)" fill="#FFFFFF"/>
+          <rect x="736" y="50" width="128" height="96" rx="8" transform="rotate(0.6 800 98)" fill="#E6F8F9" stroke="#005961"/>
+          <path d="M146 98 L158 98" marker-end="url(#s2dAr)"/>
+          <path d="M290 98 L302 98" marker-end="url(#s2dAr)"/>
+          <path d="M434 98 L446 98" marker-end="url(#s2dAr)"/>
+          <path d="M578 98 L590 98" marker-end="url(#s2dAr)"/>
+          <path d="M722 98 L734 98" marker-end="url(#s2dAr)"/>
+          <rect x="16" y="170" width="270" height="66" rx="8" transform="rotate(0.4 151 203)" fill="#FFFFFF"/>
+          <rect x="304" y="170" width="270" height="66" rx="8" transform="rotate(-0.4 439 203)" fill="#FFFFFF"/>
+          <rect x="592" y="170" width="272" height="66" rx="8" transform="rotate(0.4 728 203)" fill="#FCEEF8" stroke="#AD008B"/>
+        </g>
+
+        <text class="s2dA" x="28" y="72">IMAGE</text>
+        <text class="s2dV" x="28" y="100">28 x 28</text>
+        <text class="s2dS" x="28" y="120">784 numbers</text>
+        <text class="s2dS" x="28" y="136">x_test[2]</text>
+
+        <text class="s2dA" x="172" y="72">SHRINK</text>
+        <text class="s2dV" x="172" y="100">14 x 14</text>
+        <text class="s2dS" x="172" y="120">mean of 2 x 2</text>
+        <text class="s2dS" x="172" y="136">196 numbers</text>
+
+        <text class="s2dA" x="316" y="72">KERNELS</text>
+        <text class="s2dV" x="316" y="100">8 maps</text>
+        <text class="s2dS" x="316" y="120">4 directions,</text>
+        <text class="s2dS" x="316" y="136">+r and -r</text>
+
+        <text class="s2dA" x="460" y="72">RELU</text>
+        <text class="s2dV" x="460" y="100">max(0, r)</text>
+        <text class="s2dS" x="460" y="120">keep positives</text>
+        <text class="s2dS" x="460" y="136">8 maps, 12 x 12</text>
+
+        <text class="s2dA" x="604" y="72">POOL</text>
+        <text class="s2dV" x="604" y="100">2 x 2 max</text>
+        <text class="s2dS" x="604" y="120">keep strongest</text>
+        <text class="s2dS" x="604" y="136">8 maps, 6 x 6</text>
+
+        <text class="s2dA" x="748" y="72">FEATURES</text>
+        <text class="s2dV" x="748" y="100">288</text>
+        <text class="s2dS" x="748" y="120">8 x 36 numbers</text>
+        <text class="s2dS" x="748" y="136">to session 3</text>
+
+        <text class="s2dH" x="30" y="194">TROUSER, BUILD-ALONG RUN</text>
+        <text class="s2dS" x="30" y="214">vertical 5,170 vs horizontal 1,005</text>
+        <text class="s2dS" x="30" y="228">summed feature values</text>
+
+        <text class="s2dH" x="318" y="194">SNEAKER, BUILD-ALONG RUN</text>
+        <text class="s2dS" x="318" y="214">vertical 1,098 vs horizontal 2,555</text>
+        <text class="s2dS" x="318" y="228">the sole wins again</text>
+
+        <text class="s2dH" x="606" y="194">WHAT THESE FEATURES CANNOT SEE</text>
+        <text class="s2dS" x="606" y="214">colour: one channel only</text>
+        <text class="s2dS" x="606" y="228">anything under a 2 x 2 block</text>
+
+        <text class="s2dN" x="16" y="262">Tile sums come from your own full-pixel run; the bench computes its 288 on its own 16-level sample.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - 784 pixels become 288 edge measurements; the direction of the edges survives, colour and fine detail do not</figcaption>
+    </figure>
+
+    <div class="steps">
+      <div class="step">
+        <p><strong>Reuse session 1's loader.</strong> Same four <code>.gz</code> files in <code>data/</code>, same two functions, nothing new. Test image 2 is the Trouser and test image 230 the Sneaker from the widget.</p>
+        <div class="prompt-box good"><span class="label">★ Step 1 · load</span>import gzip
+import numpy as np
+
+def images(path):
+    with gzip.open(path, "rb") as f:
+        return np.frombuffer(f.read(), np.uint8, offset=16).reshape(-1, 28, 28)
+
+def labels(path):
+    with gzip.open(path, "rb") as f:
+        return np.frombuffer(f.read(), np.uint8, offset=8)
+
+x_train = images("data/train-images-idx3-ubyte.gz")
+y_train = labels("data/train-labels-idx1-ubyte.gz")
+x_test  = images("data/t10k-images-idx3-ubyte.gz")
+y_test  = labels("data/t10k-labels-idx1-ubyte.gz")
+CLASSES = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+           "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
+print(x_test.shape, CLASSES[y_test[2]], CLASSES[y_test[230]])
+# (10000, 28, 28) Trouser Sneaker</div>
+      </div>
+      <div class="step">
+        <p><strong>Write convolution with slicing, and check it against the widget.</strong> Instead of looping over 676 positions, loop over the nine weights: each weight multiplies one shifted 26 x 26 slice of the image, and the nine slices add up. Same arithmetic as Part 1, nine array operations instead of 6,084 scalar ones. Widen to float first: session 1's <code>uint8</code> trap is waiting. Then print the cell from the figure and the one next to it.</p>
+        <div class="prompt-box good"><span class="label">★ Step 2 · conv2d_valid on the Trouser</span>VERT = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float64)
+HORZ = VERT.T                                      # [[-1,-2,-1],[0,0,0],[1,2,1]]
+
+def conv2d_valid(img, k):
+    """Cross-correlation, stride 1, no padding: what libraries call convolution."""
+    img = img.astype(np.float64)
+    oh, ow = img.shape[0] - k.shape[0] + 1, img.shape[1] - k.shape[1] + 1
+    out = np.zeros((oh, ow))
+    for a in range(k.shape[0]):
+        for b in range(k.shape[1]):
+            out += k[a, b] * img[a:a + oh, b:b + ow]
+    return out
+
+trouser = x_test[2]
+v = np.abs(conv2d_valid(trouser, VERT) / 4)
+h = np.abs(conv2d_valid(trouser, HORZ) / 4)
+print(v.shape)                                     # (26, 26)
+print((v &gt; 40).sum(), (h &gt; 40).sum())              # 228 44
+print(v[16, 10], v[16, 11])                        # 86.75 242.5</div>
+      </div>
+      <div class="step">
+        <p><strong>Same two kernels on the Sneaker.</strong> If your numbers match the widget here too, your convolution is the widget's convolution.</p>
+        <div class="prompt-box good"><span class="label">★ Step 3 · the Sneaker flips the answer</span>sneaker = x_test[230]
+sv = np.abs(conv2d_valid(sneaker, VERT) / 4)
+sh = np.abs(conv2d_valid(sneaker, HORZ) / 4)
+print((sv &gt; 40).sum(), (sh &gt; 40).sum())            # 72 182</div>
+      </div>
+      <div class="step">
+        <p><strong>Max pool, and print the shapes.</strong> Reshape into 2 x 2 blocks and take the max of each. Of the 169 pooled cells, count how many still carry a strong vertical edge.</p>
+        <div class="prompt-box good"><span class="label">★ Step 4 · max_pool2</span>def max_pool2(m):
+    h, w = m.shape[0] // 2 * 2, m.shape[1] // 2 * 2
+    return m[:h, :w].reshape(h // 2, 2, w // 2, 2).max(axis=(1, 3))
+
+p = max_pool2(v)
+print(v.shape, "-&gt;", p.shape)                      # (26, 26) -&gt; (13, 13)
+print((p &gt; 40).sum(), "of", p.size)                # 76 of 169</div>
+      </div>
+      <div class="step">
+        <p><strong>Build the bench's feature layer.</strong> Shrink the image to 14 x 14 by averaging each 2 x 2 block, run four Sobel-direction kernels, split each response into its positive half (ReLU of +r, dark-to-light edges) and negative half (ReLU of -r, light-to-dark edges), and max pool. Eight maps of 6 x 6 is 288 numbers. The first 72 come from the vertical kernel and the next 72 from the horizontal one, so summing them is a quick check that the features remember what the widget showed. These sums are build-along numbers; your run on the full files should print the same, and they are not bench canon.</p>
+        <div class="prompt-box good"><span class="label">★ Step 5 · 288 features</span>KERNELS = {
+    "vertical":   VERT,
+    "horizontal": HORZ,
+    "diag_down":  np.array([[0, 1, 2], [-1, 0, 1], [-2, -1, 0]], dtype=np.float64),
+    "diag_up":    np.array([[2, 1, 0], [1, 0, -1], [0, -1, -2]], dtype=np.float64),
+}
+
+def shrink(img):                                   # mean of each 2 x 2 block: 28 -&gt; 14
+    return img.astype(np.float64).reshape(14, 2, 14, 2).mean(axis=(1, 3))
+
+def features(img):
+    small = shrink(img)                            # 14 x 14
+    parts = []
+    for k in KERNELS.values():
+        r = conv2d_valid(small, k) / 4             # 12 x 12
+        parts.append(max_pool2(np.maximum(r, 0)).ravel())    # +r, ReLU, pool: 36
+        parts.append(max_pool2(np.maximum(-r, 0)).ravel())   # -r, ReLU, pool: 36
+    return np.concatenate(parts)                   # 8 x 36
+
+ft, fs = features(trouser), features(sneaker)
+print(shrink(trouser).shape, ft.shape)             # (14, 14) (288,)
+print(ft[:72].sum().round(), ft[72:144].sum().round())   # 5170.0 1005.0  trouser: vertical wins
+print(fs[:72].sum().round(), fs[72:144].sum().round())   # 1098.0 2555.0  sneaker: horizontal wins</div>
+      </div>
+      <div class="step">
+        <p><strong>Write page 2 of the vision plan.</strong> A feature choice is a set of decisions, each with a reason and a cost. The field that matters most is the last one: what these 288 numbers cannot see, written before anyone trains on them.</p>
+        <div class="prompt-box good"><span class="label">★ Step 6 · Corvane's feature choice (constructed Corvane example)</span>import json
+feature_choice = {
+  "page": "2 of 6, feature choice",
+  "image_size": "28 x 28 shrunk to 14 x 14 (mean of 2 x 2 blocks)",
+  "kernels": "4 hand-made Sobel directions, +r and -r halves, ReLU, 2 x 2 max pool",
+  "length": 288,
+  "checked_against": "widget canon: Trouser 228 / 44, Sneaker 72 / 182",
+  "cannot_see": [
+    "colour: one channel only; two fibres of the same shape look identical",
+    "anything smaller than a 2 x 2 block of the original: buttons, thin tears",
+    "a flip: pooling forgives a pixel or two, not a mirror image",
+  ],
+  "known_false_alarm": "belt seams are strong horizontal edges in every frame",
+  "next": "session 3 trains a classifier on these 288 and compares raw pixels",
+}
+json.dump(feature_choice, open("feature_choice.json", "w"), indent=2)</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>Save it next to the image card.</strong> <code>image_card.json</code> and <code>feature_choice.json</code> in the same folder, same commit. When session 3's classifier confuses two classes, the first place to look is this file's <code>cannot_see</code> list.</p>
+    </div>
+  </section>
+
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 3</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Run the six steps</strong> and confirm 228, 44, 72 and 182 exactly. If one differs, check that you widened to float before multiplying and divided by 4 before the threshold.</li>
+      <li><strong>Find the cell by hand.</strong> Print <code>trouser[16:19, 10:13]</code>, multiply by <code>VERT</code> on paper, and confirm -347. Then find one output cell on the Sneaker's sole where the horizontal kernel beats the vertical one, and do the same.</li>
+      <li><strong>Add padding.</strong> Write <code>conv2d_same</code> using <code>np.pad(img, 1)</code> and confirm the output is 28 x 28. Then count how many of the new rim cells are above 40 on the Trouser, and explain where they come from.</li>
+      <li><strong>Try a learned-looking kernel.</strong> Replace one Sobel kernel with a diagonal stripe of your own design, rerun step 5, and note in <code>feature_choice.json</code> what changed in the summed values. Your numbers will differ from anyone else's, which is the point of writing them down.</li>
+    </ol>
+  </section>
+
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 2 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · A 3 x 3 kernel slides over a 28 x 28 image with stride 1 and no padding. Why is the output 26 x 26?</p>
+      <button class="qopt" type="button">A · The kernel deletes the brightest row and column</button>
+      <button class="qopt" type="button">B · The window's centre can only sit where all nine weights land on real pixels, which leaves 28 - 3 + 1 = 26 positions per side</button>
+      <button class="qopt" type="button">C · Convolution always removes 2 pixels whatever the kernel size</button>
+      <button class="qopt" type="button">D · Fashion-MNIST images have a 1-pixel border that is cropped on load</button>
+      <p class="qwhy">Valid convolution only computes where the whole window fits. A 5 x 5 kernel would give 24; padding with one ring of zeros brings a 3 x 3 back to 28. The general rule is floor((input + 2 x padding - kernel) / stride) + 1.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="3">
+      <p class="qtext">2 · On the Trouser, the vertical-edge kernel gives 228 positions above 40 and the horizontal kernel gives 44. What does that tell you?</p>
+      <button class="qopt" type="button">A · The vertical kernel is simply more sensitive and always gives bigger counts</button>
+      <button class="qopt" type="button">B · The image is rotated a quarter turn</button>
+      <button class="qopt" type="button">C · The horizontal kernel is broken on this image</button>
+      <button class="qopt" type="button">D · Most of the strong brightness changes in trousers run left to right across the legs; on the Sneaker the counts flip to 72 and 182 because the sole is a horizontal edge</button>
+      <p class="qwhy">Neither kernel is "more sensitive": the same pair reverses on the Sneaker. The counts describe the garment's shape, which is why edge features already separate some classes before any model is trained.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · A 2 x 2 max pool helps when an item shifts by one pixel. Why does it not help when the item is flipped left to right?</p>
+      <button class="qopt" type="button">A · Pooling keeps the strongest value within a 2 x 2 block, so it absorbs moves of a pixel or so; a flip moves features across the whole image, far outside any block</button>
+      <button class="qopt" type="button">B · Pooling only works on vertical edges</button>
+      <button class="qopt" type="button">C · Flipping changes the pixel values, and pooling needs the same values</button>
+      <button class="qopt" type="button">D · It does help; pooled features are invariant to flips</button>
+      <p class="qwhy">A flip keeps every pixel value and moves it, which is the opposite of what option C says. Goodfellow et al. 9.3 says pooling is "approximately invariant to small translations": small, and translations. Session 5 measures what a flip does to the bench's shoes.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Cross-correlation vs convolution, sparse interactions, parameter sharing, pooling and small translations</span><span class="note">Goodfellow, Bengio, Courville (2016), Deep Learning, ch. 9 Convolutional Networks, sections 9.1 to 9.3, read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">First-layer learned features resemble Gabor filters and colour blobs, general to specific</span><span class="note">Yosinski, Clune, Bengio, Lipson (2014), How transferable are features in deep neural networks?, NIPS 27, arXiv:1411.1792, abstract read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Every edge count, strongest response and pooled value on this page</span><span class="note">Computed by the widget in your browser and by an independent numpy reference, compared by value; the build-along reproduces 228, 44, 72 and 182 on the public files</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Feature sums in step 5 and the hand-computed cell 86.75</span><span class="note">Build-along numbers from a run on the full-size Fashion-MNIST test images, not bench canon</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Linear filtering, further reading</span><span class="note">Szeliski (2022), Computer Vision: Algorithms and Applications, 2nd ed., reported; no claim on this page is attributed to it</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Corvane, its frame size, its belt seams and its feature choice</span><span class="note">Constructed Corvane example; the images are garments standing in for textiles, never waste photos</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Every fact on this page, and its verification tier, is recorded in the course's source map.</p>
+  </section>
+
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 2 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>One cell = nine products, summed</b><span>Patch times kernel, add, scale, absolute value. Trouser rows 16-18: -347, then 86.75.</span></div>
+      <div class="cheat-item"><b>Libraries skip the flip</b><span>What they call convolution is cross-correlation. Matters only for hand-copied kernels.</span></div>
+      <div class="cheat-item"><b>Same nine weights everywhere</b><span>Reused at all 676 positions of a 26 x 26 output. Cost grows with the image, weights do not.</span></div>
+      <div class="cheat-item"><b>Edge direction is information</b><span>Trouser: vertical 228, horizontal 44. Sneaker: 72 and 182. Belt seams fire too.</span></div>
+      <div class="cheat-item"><b>Output size</b><span>floor((in + 2 x pad - k) / stride) + 1. 28 gives 26; pad 1 keeps 28; stride 2 or a 2 x 2 pool gives 13.</span></div>
+      <div class="cheat-item"><b>Pooling forgives a pixel, not a mirror</b><span>Keeps the strongest of four. Small translations only; a flip moves everything.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>You can turn a garment into 288 edge measurements and say what they miss. Session 3 trains a first classifier on them and opens its confusion table. On the bench, with only 300 labels, raw pixels reach 74.8%, the 33 hand-made measurements fall to 69.4%, and these convolution features reach 75.8%. Why the hand-made ones lose, and which classes all three still mix up, is where the error table starts.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 2 of 6 · learn-computer-vision-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="01-an-image-is-a-grid-of-numbers.html">← Prev: An image is a grid of numbers</a> &nbsp;·&nbsp; <a href="03-a-first-classifier.html">Next: A first classifier →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/cvf-sample.js?v=1"></script>
+<script src="../assets/cvf-live.js?v=2"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

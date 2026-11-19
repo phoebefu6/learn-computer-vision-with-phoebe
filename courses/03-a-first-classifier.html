@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 3 of 6. A first image classifier: a majority baseline printed first, softmax regression on raw pixels, hand-made features and convolution features at the same 300 labels, then the confusion table that shows which garments it mixes up. Real numbers, computed.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="A first classifier and what it confuses - learn computer vision with phoebe">
+<meta property="og:description" content="Session 3 of 6. Always saying Shirt scores 9.8%. Thirty-three hand-made measurements lose to raw pixels. And the errors live in four cells of a 10 x 10 table.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/courses/03-a-first-classifier.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="A first classifier and what it confuses - learn computer vision with phoebe">
+<meta name="twitter:description" content="Session 3 of 6. Baselines, three feature sets at equal labels, and the confusion table where the errors live.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-computer-vision-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 3 · A first classifier and what it confuses - learn computer vision with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-computer-vision-with-phoebe</a> / Session 3 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Computer Vision Foundations with Phoebe · Session 3 of 6</div>
+    <h1>A first classifier and what it <span class="accent">confuses</span></h1>
+    <p class="sub">You have images as grids and features that slide a window across them. Tonight the features meet a classifier, and the first thing we print is not the model's score but the score of a model that knows nothing. Then we put three kinds of features through the same classifier with the same 300 labels, and open the confusion table to see where the errors actually live. One accuracy number hides the answer to the question a sorting line cares about most: which two things does it mix up?</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Core</span>
+      <span class="chip audience">Analysts and data scientists new to images</span>
+      <span class="chip audience">Python, numpy, scikit-learn</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-18 · Baselines, features, confusion</span>
+      <span class="a3" style="flex:5">18-40 · Build-along: Corvane's baseline and error table</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Where we start</h2>
+    </div>
+    <p class="lede">Corvane, the constructed recycling plant, now has an image card (session 1) and a feature choice (session 2). Page 3 of its vision plan is the first honest number: how often a simple classifier puts an item in the right bin, compared with a classifier that does nothing clever at all, and a table of exactly which items it sends to the wrong one. The images are still Fashion-MNIST garments standing in for textiles on the line, not waste photos. Two sets of numbers appear tonight and they are kept apart on purpose: the <strong>bench</strong> numbers, computed on a 14 x 14 sample with 300 labels, and the <strong>build-along</strong> numbers, computed by you on full-size 28 x 28 images.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+      <span class="pill">★ Build-along = run the code yourself</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> The reflex of printing a majority baseline before any model score, a plain-words picture of softmax regression, the surprising result that 33 hand-made measurements lose to raw pixels, a scikit-learn classifier you trained yourself, and page 3 of Corvane's vision plan: a baseline and an error table, worst class first.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers baselines and softmax regression</span>
+      <h2>From features to ten probabilities</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Whatever features you hand it, the classifier tonight does the same three things. It computes one weighted sum of the features for each of the ten classes. It turns those ten sums into ten probabilities that add up to 1. It picks the largest. Before trusting any of that, print what a model scores when it ignores the image entirely.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 342" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A feature vector feeds ten weighted sums, one per class from T-shirt to Ankle boot. Softmax turns the ten sums into ten probabilities that add up to 1, and argmax picks the largest, here Shirt. Beside it, the majority baseline on the bench: the 300 random labels hold 43 Shirts, so always answering Shirt gets 98 of 1,000 holdout images right, 9.8 percent, the floor.">
+        <defs>
+          <filter id="s3aSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="53" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s3aHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s3aAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s3aH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s3aL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s3aS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s3aB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s3aV { font: 800 18px Inter, sans-serif; fill: #6A0055; }
+          .s3aA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s3aN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s3aH" x="40" y="26">FROM FEATURES TO TEN PROBABILITIES</text>
+        <text class="s3aH" x="150" y="48">ONE SUM PER CLASS</text>
+        <text class="s3aH" x="440" y="48">SOFTMAX OUTPUT</text>
+
+        <g filter="url(#s3aSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- feature vector -->
+          <rect x="40" y="56" width="70" height="216" rx="6" transform="rotate(-0.5 75 164)" fill="url(#s3aHc)"/>
+          <path d="M114 164 L144 68" marker-end="url(#s3aAr)"/>
+          <path d="M114 164 L144 164" marker-end="url(#s3aAr)"/>
+          <path d="M114 164 L144 260" marker-end="url(#s3aAr)"/>
+          <!-- ten weighted sums -->
+          <rect x="150" y="56" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="78" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="100" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="122" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="144" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="166" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="188" width="120" height="18" rx="4" fill="#FCEEF8" stroke="#AD008B"/>
+          <rect x="150" y="210" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="232" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <rect x="150" y="254" width="120" height="18" rx="4" fill="#FFFFFF"/>
+          <!-- into softmax -->
+          <path d="M276 66 L306 160" marker-end="url(#s3aAr)"/>
+          <path d="M276 263 L306 180" marker-end="url(#s3aAr)"/>
+          <rect x="310" y="130" width="90" height="80" rx="10" transform="rotate(0.6 355 170)" fill="#5FD3DC" stroke="#005961"/>
+          <path d="M404 170 L432 170" marker-end="url(#s3aAr)"/>
+          <!-- ten probability bars (lengths illustrative) -->
+          <rect x="440" y="58" width="26" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="80" width="5" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="102" width="20" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="124" width="8" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="146" width="16" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="168" width="4" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="190" width="90" height="14" fill="#EDB3DD" stroke="#AD008B"/>
+          <rect x="440" y="212" width="4" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="234" width="6" height="14" fill="#FCEEF8"/>
+          <rect x="440" y="256" width="4" height="14" fill="#FCEEF8"/>
+          <!-- majority baseline panel -->
+          <rect x="640" y="60" width="210" height="180" rx="10" transform="rotate(-0.5 745 150)" fill="#FFFFFF" stroke="#D6C4CF"/>
+        </g>
+
+        <text class="s3aS" x="160" y="69">T-shirt/top</text>
+        <text class="s3aS" x="160" y="91">Trouser</text>
+        <text class="s3aS" x="160" y="113">Pullover</text>
+        <text class="s3aS" x="160" y="135">Dress</text>
+        <text class="s3aS" x="160" y="157">Coat</text>
+        <text class="s3aS" x="160" y="179">Sandal</text>
+        <text class="s3aL" x="160" y="201">Shirt</text>
+        <text class="s3aS" x="160" y="223">Sneaker</text>
+        <text class="s3aS" x="160" y="245">Bag</text>
+        <text class="s3aS" x="160" y="267">Ankle boot</text>
+
+        <text class="s3aB" x="355" y="166" text-anchor="middle">softmax</text>
+        <text class="s3aS" x="355" y="184" text-anchor="middle">exp, / total</text>
+        <text class="s3aA" x="540" y="201">argmax</text>
+
+        <text class="s3aS" x="40" y="292">the features</text>
+        <text class="s3aS" x="150" y="292">weights x features + bias</text>
+        <text class="s3aS" x="440" y="292">ten probabilities, sum 1</text>
+        <text class="s3aS" x="440" y="308">bar lengths illustrative</text>
+
+        <text class="s3aH" x="656" y="86">MAJORITY BASELINE</text>
+        <text class="s3aS" x="656" y="108">bench: 300 random labels</text>
+        <text class="s3aS" x="656" y="124">hold 43 Shirts, the most</text>
+        <text class="s3aL" x="656" y="148">so: always say Shirt</text>
+        <text class="s3aV" x="656" y="182">9.8%</text>
+        <text class="s3aS" x="656" y="204">98 of 1,000 holdout</text>
+        <text class="s3aB" x="656" y="222">the floor to beat</text>
+
+        <text class="s3aN" x="40" y="332">A model that cannot clear the floor has learned nothing from the pixels. Print the floor first.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three moves, sum, softmax, argmax; and a floor of 9.8% that every model is measured against</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Softmax regression in plain words<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The model holds one weight per feature per class. With 288 convolution features and 10 classes that is 2,880 weights, plus one bias per class. For an image, each class gets a score: multiply every feature by that class's weight and add them up. A large positive weight means "this feature is evidence for this class"; a negative one means evidence against.</p>
+        <p>Softmax turns the ten scores into probabilities: raise <em>e</em> to each score so they are all positive, then divide by their total so they sum to 1. The highest score always becomes the highest probability; softmax only changes how confident it sounds. Argmax picks the class. Training nudges the weights, step by step, to raise the probability of the right class on every labelled image: that is gradient descent. How the nudges are computed is backpropagation, covered in <a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/courses/02-backprop-by-hand.html">Deep Learning session 2</a>, and the loop that repeats them is <a href="https://phoebefu6.github.io/learn-deep-learning-with-phoebe/courses/03-the-training-loop.html">Deep Learning session 3</a>. Tonight treats the training as a black box with known inputs and outputs.</p>
+        <p>The bench version is deliberately plain: features standardised, weights starting at zero, 150 full-batch gradient steps, learning rate 0.5, a small L2 penalty of 0.001. Plain is the point. When the classifier stays fixed, any difference in accuracy comes from the features or the labels, not from tuning.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why a majority baseline comes first<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A majority baseline answers every image with the most common class in the training labels. On a balanced test set like Fashion-MNIST's, with 1,000 images per class, it scores about 10%, one class in ten. The bench's 300 random labels happen to hold 43 Shirts, more than any other class, so the bench baseline always says Shirt and gets the 98 holdout Shirts right: 9.8%.</p>
+        <p>That looks like a number too obvious to print. On a real belt it is not. If 70% of the items on Corvane's line were one textile (a constructed figure), a model that always answered that textile would score 70% and route every other item wrong. A 72% model would look like a success and be nearly useless. The baseline is the only thing that tells you how much of the score is the model and how much is the mix on the belt, which is why it goes on the plan before the model's own number.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The 70% that was the belt, not the model (constructed Corvane example).</strong> Imagine Corvane's first vendor demo reports 70% accuracy on a week of line footage. Nobody asks what share of that week was the most common textile. If it was 65%, the model adds five points over doing nothing; if it was 30%, it adds forty. The same headline, two completely different products. Ask for the floor in the same sentence as the score, every time.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers three feature sets at equal labels</span>
+      <h2>Pixels, hand-made features, convolution features</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Hold the classifier fixed, hold the 300 labels fixed, hold the 1,000 holdout images fixed, and change only what the classifier is shown. Three feature sets, three numbers, computed on the bench's 14 x 14 sample. Then, for scale, the same convolution features with every label in the 2,000-image pool.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 326" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bench accuracy on 1,000 holdout images, all at 300 labels with the same softmax regression: raw pixels, 196 values, 74.8 percent; hand-made features, 33 measurements, 69.4 percent; fixed convolution features, 288 values, 75.8 percent. Below a dashed line, the ceiling: convolution features with all 2,000 pool labels, 82.5 percent. The majority floor of 9.8 percent is marked on the axis.">
+        <defs>
+          <filter id="s3bSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="61" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s3bHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s3bAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s3bH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s3bL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s3bS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s3bB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s3bV { font: 800 16px Inter, sans-serif; fill: #6A0055; }
+          .s3bA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s3bN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s3bH" x="40" y="26">SAME CLASSIFIER, SAME 300 LABELS, THREE FEATURE SETS</text>
+        <text class="s3bA" x="289" y="44" text-anchor="middle">majority 9.8%</text>
+
+        <g filter="url(#s3bSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M240 52 L240 276"/>
+          <path d="M289 52 L289 276" stroke="#AD008B" stroke-dasharray="4 5"/>
+          <rect x="240" y="58" width="374" height="30" rx="4" transform="rotate(-0.4 427 73)" fill="#FCEEF8"/>
+          <rect x="240" y="108" width="347" height="30" rx="4" transform="rotate(0.4 413 123)" fill="#FFFFFF"/>
+          <rect x="240" y="158" width="379" height="30" rx="4" transform="rotate(-0.4 429 173)" fill="#5FD3DC" stroke="#005961"/>
+          <path d="M40 208 L840 208" stroke="#D6C4CF" stroke-dasharray="6 6"/>
+          <rect x="240" y="238" width="412" height="30" rx="4" transform="rotate(0.4 446 253)" fill="url(#s3bHc)"/>
+        </g>
+
+        <text class="s3bL" x="40" y="72">raw pixels</text>
+        <text class="s3bS" x="40" y="88">196 values, 14 x 14</text>
+        <text class="s3bL" x="40" y="122">hand-made features</text>
+        <text class="s3bS" x="40" y="138">33 measurements</text>
+        <text class="s3bL" x="40" y="172">convolution features</text>
+        <text class="s3bS" x="40" y="188">8 fixed kernels, 288 values</text>
+        <text class="s3bL" x="40" y="252">conv, all 2,000 labels</text>
+        <text class="s3bS" x="40" y="268">the ceiling</text>
+
+        <text class="s3bV" x="626" y="79">74.8%</text>
+        <text class="s3bV" x="599" y="129">69.4%</text>
+        <text class="s3bV" x="631" y="179">75.8%</text>
+        <text class="s3bS" x="700" y="179">+1.0 vs raw</text>
+        <text class="s3bS" x="672" y="129">-5.4 vs raw</text>
+        <text class="s3bB" x="300" y="228">below the line: every label in the 2,000-image pool, not 300</text>
+        <text class="s3bV" x="664" y="259">82.5%</text>
+
+        <text class="s3bS" x="240" y="292" text-anchor="middle">0</text>
+        <text class="s3bS" x="490" y="292" text-anchor="middle">50%</text>
+        <text class="s3bS" x="740" y="292" text-anchor="middle">100%</text>
+
+        <text class="s3bN" x="40" y="316">Bench canon, holdout 1,000 at 14 x 14. Hand-made features lost 5.4 points to the raw pixels they came from.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - convolution features beat raw pixels by one point at 300 labels; more labels moved the needle by almost seven</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why the hand-made features lost<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The hand-made set is 33 measurements a sensible person might write: how much ink sits in each row and each column (the profiles), the total ink, the bounding box of the garment, how symmetric it is left to right. Every one of them is a summary, and every summary throws information away. A row profile knows that row 6 has a lot of ink; it does not know whether that ink is a collar or a pocket. Thirty-three numbers computed from 196 pixels can never hold more than the 196 did.</p>
+        <p>Raw pixels throw nothing away but know nothing about neighbours. Convolution features keep local shape: an edge here, a corner there, pooled so that a small shift does not matter much. On the bench they win, but by one point: 75.8% against 74.8%. Keep that one point in proportion. The bench's own check of seed luck, rung 4 trained on five different random draws of 300 labels, ranges from 75.6% to 77.6%: a 2.0-point spread. A one-point gap is inside the noise of which labels you happened to buy. The 6.7 points from 300 labels to all 2,000 are not.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>For scale: the published table<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Xiao, Rasul and Vollgraf (2017), the Fashion-MNIST paper, report a benchmark in Table 3: scikit-learn classifiers trained on all 60,000 full-size 28 x 28 training images and scored on the 10,000 test images. LogisticRegression, the same family as tonight's classifier, reaches 0.842. The best entry in the table is an SVC with an RBF kernel at 0.897; KNeighbors 0.854, MLPClassifier 0.871, RandomForest 0.873 and GradientBoosting 0.880 sit between.</p>
+        <p>Those numbers are not comparable with the bench, and the reason is the whole lesson of controlled comparison. The bench uses 300 labels, not 60,000; 14 x 14 pixels at 16 grey levels, not 28 x 28 at 256; and a 1,000-image holdout. Compare bench rungs with each other, because everything except one thing is held still. Never compare a bench rung with a leaderboard, because almost everything differs. The build-along below sits in between: full-size images, 20,000 labels, and a number close to the paper's.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>When people score below a plain model.</strong> The Fashion-MNIST README reports human performance of 0.835: crowd workers labelled 1,000 test images, three labels each, majority vote. The paper's plain LogisticRegression scored 0.842 on the full test set. That does not mean the model sees garments better than people do. It says some of these classes are genuinely hard to tell apart in a 28 x 28 greyscale thumbnail, for anyone. When people and a simple model both struggle on the same classes, more modelling is rarely the cheapest fix; a better camera, or merging two bins, might be.</p>
+    </div>
+  </section>
+
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers the confusion table and per-class error</span>
+      <h2>The confusion table: where the errors live</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Accuracy is one number for the whole holdout. A confusion table is a hundred: one row per true class, one column per predicted class, each cell counting how many images of that row's class were called that column's class. The diagonal is the correct answers. Everything off the diagonal is a specific mistake with a specific cost, and on the bench the big ones crowd into a small corner of upper-body garments.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A 10 by 10 confusion table for bench rung 4, convolution features at 300 labels. Rows are the true class, columns the predicted class. The diagonal holds the correct answers. The four biggest off-diagonal cells are highlighted: T-shirt read as Shirt 21, Pullover read as Coat 19, Coat read as Shirt 16, Coat read as Pullover 16. Per-class error in the margin: Pullover 41.6 percent, Coat 40.0, Shirt 35.7, T-shirt 30.8, Dress 30.0, Sneaker 16.2, Bag 15.8, Sandal 13.1, Trouser 10.6, Ankle boot 8.6.">
+        <defs>
+          <filter id="s3cSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="67" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s3cHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s3cAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s3cH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s3cL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s3cS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s3cB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s3cV { font: 800 16px Inter, sans-serif; fill: #6A0055; }
+          .s3cA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s3cN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s3cH" x="40" y="26">BENCH RUNG 4: CONVOLUTION FEATURES, 300 LABELS, 1,000 HOLDOUT</text>
+        <text class="s3cS" x="150" y="46">rows = true class, columns = predicted 0 to 9</text>
+        <text class="s3cA" x="400" y="62">error</text>
+
+        <g filter="url(#s3cSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="150" y="70" width="240" height="240" rx="2" transform="rotate(-0.3 270 190)" fill="#FFFFFF"/>
+          <path d="M174 70 L174 310 M198 70 L198 310 M222 70 L222 310 M246 70 L246 310 M270 70 L270 310 M294 70 L294 310 M318 70 L318 310 M342 70 L342 310 M366 70 L366 310" stroke="#EFE4EB" stroke-width="1.2"/>
+          <path d="M150 94 L390 94 M150 118 L390 118 M150 142 L390 142 M150 166 L390 166 M150 190 L390 190 M150 214 L390 214 M150 238 L390 238 M150 262 L390 262 M150 286 L390 286" stroke="#EFE4EB" stroke-width="1.2"/>
+          <!-- diagonal: correct answers -->
+          <rect x="152" y="72" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="176" y="96" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="200" y="120" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="224" y="144" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="248" y="168" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="272" y="192" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="296" y="216" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="320" y="240" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="344" y="264" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <rect x="368" y="288" width="20" height="20" fill="url(#s3cHc)" stroke="#D6C4CF" stroke-width="1"/>
+          <!-- the four biggest off-diagonal cells -->
+          <rect x="296" y="72" width="20" height="20" fill="#5FD3DC" stroke="#005961"/>
+          <rect x="248" y="120" width="20" height="20" fill="#5FD3DC" stroke="#005961"/>
+          <rect x="296" y="168" width="20" height="20" fill="#5FD3DC" stroke="#005961"/>
+          <rect x="200" y="168" width="20" height="20" fill="#5FD3DC" stroke="#005961"/>
+          <!-- side panel -->
+          <rect x="480" y="66" width="370" height="170" rx="10" transform="rotate(0.4 665 151)" fill="#FFFFFF" stroke="#D6C4CF"/>
+        </g>
+
+        <text class="s3cS" x="162" y="64" text-anchor="middle">0</text>
+        <text class="s3cS" x="186" y="64" text-anchor="middle">1</text>
+        <text class="s3cS" x="210" y="64" text-anchor="middle">2</text>
+        <text class="s3cS" x="234" y="64" text-anchor="middle">3</text>
+        <text class="s3cS" x="258" y="64" text-anchor="middle">4</text>
+        <text class="s3cS" x="282" y="64" text-anchor="middle">5</text>
+        <text class="s3cS" x="306" y="64" text-anchor="middle">6</text>
+        <text class="s3cS" x="330" y="64" text-anchor="middle">7</text>
+        <text class="s3cS" x="354" y="64" text-anchor="middle">8</text>
+        <text class="s3cS" x="378" y="64" text-anchor="middle">9</text>
+
+        <text class="s3cS" x="140" y="86" text-anchor="end">0 T-shirt</text>
+        <text class="s3cS" x="140" y="110" text-anchor="end">1 Trouser</text>
+        <text class="s3cS" x="140" y="134" text-anchor="end">2 Pullover</text>
+        <text class="s3cS" x="140" y="158" text-anchor="end">3 Dress</text>
+        <text class="s3cS" x="140" y="182" text-anchor="end">4 Coat</text>
+        <text class="s3cS" x="140" y="206" text-anchor="end">5 Sandal</text>
+        <text class="s3cS" x="140" y="230" text-anchor="end">6 Shirt</text>
+        <text class="s3cS" x="140" y="254" text-anchor="end">7 Sneaker</text>
+        <text class="s3cS" x="140" y="278" text-anchor="end">8 Bag</text>
+        <text class="s3cS" x="140" y="302" text-anchor="end">9 Ankle boot</text>
+
+        <text class="s3cB" x="306" y="86" text-anchor="middle">21</text>
+        <text class="s3cB" x="258" y="134" text-anchor="middle">19</text>
+        <text class="s3cB" x="306" y="182" text-anchor="middle">16</text>
+        <text class="s3cB" x="210" y="182" text-anchor="middle">16</text>
+
+        <text class="s3cS" x="400" y="86">30.8%</text>
+        <text class="s3cS" x="400" y="110">10.6%</text>
+        <text class="s3cA" x="400" y="134">41.6%</text>
+        <text class="s3cS" x="400" y="158">30.0%</text>
+        <text class="s3cA" x="400" y="182">40.0%</text>
+        <text class="s3cS" x="400" y="206">13.1%</text>
+        <text class="s3cA" x="400" y="230">35.7%</text>
+        <text class="s3cS" x="400" y="254">16.2%</text>
+        <text class="s3cS" x="400" y="278">15.8%</text>
+        <text class="s3cS" x="400" y="302">8.6%</text>
+
+        <text class="s3cH" x="500" y="92">THE FOUR BIGGEST MIX-UPS</text>
+        <text class="s3cL" x="500" y="124">T-shirt read as Shirt</text>
+        <text class="s3cV" x="826" y="124" text-anchor="end">21</text>
+        <text class="s3cL" x="500" y="152">Pullover read as Coat</text>
+        <text class="s3cV" x="826" y="152" text-anchor="end">19</text>
+        <text class="s3cL" x="500" y="180">Coat read as Shirt</text>
+        <text class="s3cV" x="826" y="180" text-anchor="end">16</text>
+        <text class="s3cL" x="500" y="208">Coat read as Pullover</text>
+        <text class="s3cV" x="826" y="208" text-anchor="end">16</text>
+
+        <text class="s3cS" x="480" y="266">worst rows: Pullover 41.6%, Coat 40.0%, Shirt 35.7%</text>
+        <text class="s3cS" x="480" y="284">best rows: Ankle boot 8.6%, Trouser 10.6%</text>
+        <text class="s3cS" x="480" y="302">hachured diagonal = correct answers</text>
+
+        <text class="s3cN" x="40" y="340">One accuracy, 75.8%, covers a nearly fivefold spread in error: Pullover is wrong 41.6% of the time, Ankle boot 8.6%.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the four biggest mistakes all trade between T-shirt, Pullover, Coat and Shirt</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Reading the table: rows, columns, one row's error<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Read a row to ask "when the item really was a Coat, where did it go?" On the bench, 16 Coats went to Shirt and 16 to Pullover. Read a column to ask "when the model said Shirt, what was it really?" Per-class error is one row at a time: the share of that row's images that landed anywhere but the diagonal. At rung 4 that ranges from 41.6% for Pullover and 40.0% for Coat, through 35.7% for Shirt, 30.8% for T-shirt and 30.0% for Dress, down to 10.6% for Trouser and 8.6% for Ankle boot.</p>
+        <p>The table is not symmetric, and the direction matters. T-shirt read as Shirt is 21; the reverse direction is not among the biggest four. A model can lean one way on a look-alike pair. With all 2,000 labels the leaning changes: the biggest cells become Pullover as Coat 16, Shirt as T-shirt 15 and Coat as Shirt 15, and the worst row is still Shirt at 36.7%. More labels shrank the errors without moving them out of the upper-body corner. Precision, recall and F1, the per-class summaries built from this table, are taught in <a href="https://phoebefu6.github.io/learn-intro-ml-with-phoebe/courses/b7-classification-metrics.html">Intro ML b7: classification metrics</a>; tonight we stay with the raw counts.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What the table cannot tell you<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A confusion table counts mistakes; it does not price them. Two cells of 16 can carry very different costs. It also inherits every property of the holdout it was computed on: the bench holdout has 117 T-shirts and 84 Sandals, so a cell's count is partly how many of that class happened to be drawn. Compare rows by error rate, not by raw counts, when the classes are uneven.</p>
+        <p>And it says nothing about why. T-shirt and Shirt might be confused because the 14 x 14 images lost the buttons and collars (session 1 warned about that), because the classes overlap in the catalogue, or because a few labels disagree with the picture. The table tells you where to look. Pulling up twenty images from the worst cell and looking at them is the next step, every time.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Two textiles that look alike from above (constructed Corvane example).</strong> Picture two fabrics on Corvane's belt that a top-down camera sees as the same shape and grey level, but that belong in different bins because one blends synthetic fibre and the other does not. An overall accuracy of 90% could be made of near-perfect routing on everything else and coin-flip routing on exactly that pair. The bale for the cleaner fibre is the one that gets contaminated. The confusion table is the only page of the plan where that pair shows up by name, which is why it sits next to the accuracy, never behind it.</p>
+    </div>
+  </section>
+
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Corvane's baseline and error table, in scikit-learn</h2>
+      <span class="tag demo">★ 22 min · everyone builds</span>
+    </div>
+    <p class="lede">Six steps on the public Fashion-MNIST files with numpy and scikit-learn. This runs on <strong>full-size 28 x 28 images</strong> with 20,000 training labels, so its numbers are not the bench's 14 x 14, 300-label numbers above and should not match them. Every number printed below is what the code produced; your numbers may differ in the last digit with another library version. The output is page 3 of <strong>Corvane's vision plan</strong>.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Corvane's error table as a hand-drawn index card with six fields fed by the build-along steps: majority baseline 10.0 percent; LogisticRegression on raw pixels 83.1 percent on 10,000 test images; the three biggest confused pairs, Shirt as T-shirt 143, Coat as Pullover 123, Shirt as Pullover 122; worst classes Shirt 43.8 percent, Pullover 27.4, Coat 26.3; the data note; and the constructed cost of a wrong bin.">
+        <defs>
+          <filter id="s3dSk" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="71" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+          <pattern id="s3dHc" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(-38)"><line x1="0" y1="0" x2="0" y2="7" stroke="#AD008B" stroke-width="1" opacity=".5"/></pattern>
+          <marker id="s3dAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#26121F" stroke-width="1.6" stroke-linecap="round"/></marker>
+        </defs>
+        <style>
+          .s3dH { font: 800 12px Inter, sans-serif; fill: #26121F; }
+          .s3dL { font: 600 12px Inter, sans-serif; fill: #26121F; }
+          .s3dS { font: 400 11px Inter, sans-serif; fill: #5E4A57; }
+          .s3dA { font: 700 11px Inter, sans-serif; fill: #AD008B; }
+          .s3dB { font: 800 11px Inter, sans-serif; fill: #005961; }
+          .s3dN { font: 400 12px Inter, sans-serif; fill: #5E4A57; }
+        </style>
+
+        <text class="s3dH" x="40" y="26">CORVANE'S ERROR TABLE (CONSTRUCTED CORVANE EXAMPLE)</text>
+
+        <g filter="url(#s3dSk)" fill="none" stroke="#26121F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="40" y="44" width="800" height="252" rx="10" transform="rotate(-0.3 440 170)" fill="#FFFFFF"/>
+          <path d="M40 76 L840 76" stroke="#AD008B"/>
+          <rect x="56" y="88" width="250" height="92" rx="8" transform="rotate(0.5 181 134)" fill="#FCEEF8"/>
+          <rect x="316" y="88" width="250" height="92" rx="8" transform="rotate(-0.5 441 134)" fill="#FCEEF8"/>
+          <rect x="576" y="88" width="250" height="92" rx="8" transform="rotate(0.4 701 134)" fill="#FCEEF8"/>
+          <rect x="56" y="192" width="250" height="92" rx="8" transform="rotate(-0.4 181 238)" fill="#FCEEF8"/>
+          <rect x="316" y="192" width="250" height="92" rx="8" transform="rotate(0.5 441 238)" fill="url(#s3dHc)"/>
+          <rect x="576" y="192" width="250" height="92" rx="8" transform="rotate(-0.5 701 238)" fill="#E6F8F9" stroke="#005961"/>
+        </g>
+
+        <text class="s3dL" x="56" y="66">Baseline and error table, page 3 of the vision plan</text>
+        <text class="s3dA" x="70" y="108">STEP 2 · THE FLOOR</text>
+        <text class="s3dS" x="70" y="128">always say Shirt: 10.0% of test</text>
+        <text class="s3dS" x="70" y="144">test is balanced, 1,000 each</text>
+        <text class="s3dS" x="70" y="160">printed before any model</text>
+        <text class="s3dA" x="330" y="108">STEP 3 · THE MODEL</text>
+        <text class="s3dS" x="330" y="128">LogisticRegression, raw pixels</text>
+        <text class="s3dS" x="330" y="144">83.1% of 10,000 test images</text>
+        <text class="s3dS" x="330" y="160">73.1 points above the floor</text>
+        <text class="s3dA" x="590" y="108">STEP 4 · CONFUSED PAIRS</text>
+        <text class="s3dS" x="590" y="128">Shirt as T-shirt/top: 143</text>
+        <text class="s3dS" x="590" y="144">Coat as Pullover: 123</text>
+        <text class="s3dS" x="590" y="160">Shirt as Pullover: 122</text>
+        <text class="s3dA" x="70" y="212">STEP 5 · WORST FIRST</text>
+        <text class="s3dS" x="70" y="232">Shirt 43.8%, Pullover 27.4%</text>
+        <text class="s3dS" x="70" y="248">Coat 26.3%, T-shirt 21.4%</text>
+        <text class="s3dS" x="70" y="264">best: Trouser 4.6%</text>
+        <text class="s3dA" x="330" y="212">DATA NOTE</text>
+        <text class="s3dL" x="330" y="232">20,000 of 60,000 train, seed 0</text>
+        <text class="s3dL" x="330" y="248">28 x 28, not the bench 14 x 14</text>
+        <text class="s3dL" x="330" y="264">numbers differ from the bench</text>
+        <text class="s3dB" x="590" y="212">STEP 6 · A WRONG BIN COSTS</text>
+        <text class="s3dS" x="590" y="232">look-alike textiles, two bins</text>
+        <text class="s3dS" x="590" y="248">the wrong one fouls a bale</text>
+        <text class="s3dS" x="590" y="264">constructed, no money figure</text>
+
+        <text class="s3dN" x="40" y="320">The same corner as the bench: Shirt, Pullover, Coat and T-shirt hold the biggest errors at either size.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - floor, score, worst classes and named pairs on one card, so nobody quotes 83.1% without the rest</figcaption>
+    </figure>
+
+    <div class="steps">
+      <div class="step">
+        <p><strong>Load the files with the session 1 loader.</strong> Same four <code>.gz</code> files in <code>data/</code>, same two functions, plus the class names.</p>
+        <div class="prompt-box good"><span class="label">★ Step 1 · load</span>import gzip
+import numpy as np
+
+def images(path):
+    with gzip.open(path, "rb") as f:
+        return np.frombuffer(f.read(), np.uint8, offset=16).reshape(-1, 28, 28)
+
+def labels(path):
+    with gzip.open(path, "rb") as f:
+        return np.frombuffer(f.read(), np.uint8, offset=8)
+
+x_train = images("data/train-images-idx3-ubyte.gz")
+y_train = labels("data/train-labels-idx1-ubyte.gz")
+x_test  = images("data/t10k-images-idx3-ubyte.gz")
+y_test  = labels("data/t10k-labels-idx1-ubyte.gz")
+CLASSES = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+           "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]</div>
+      </div>
+      <div class="step">
+        <p><strong>Scale, flatten, and print the floor.</strong> Divide by 255 so every pixel sits between 0 and 1, flatten each image to a row of 784, and take a fixed-seed sample of 20,000 training images so the fit stays under a minute. Then the majority baseline: the commonest class in your training labels, scored on all 10,000 test images.</p>
+        <div class="prompt-box good"><span class="label">★ Step 2 · scale and baseline</span># Subsample 20,000 of the 60,000 training images with a fixed seed,
+# so the fit in step 3 runs in seconds, not minutes.
+rng = np.random.default_rng(0)
+idx = rng.choice(len(x_train), size=20000, replace=False)
+X_tr = x_train[idx].reshape(-1, 784) / 255.0
+y_tr = y_train[idx]
+X_te = x_test.reshape(-1, 784) / 255.0
+print(X_tr.shape, X_te.shape, X_tr.max())   # (20000, 784) (10000, 784) 1.0
+
+majority = np.bincount(y_tr).argmax()
+print(CLASSES[majority], np.bincount(y_tr)[majority])   # Shirt 2043
+print((y_test == majority).mean())                      # 0.1</div>
+      </div>
+      <div class="step">
+        <p><strong>Fit softmax regression on raw pixels.</strong> scikit-learn's <code>LogisticRegression</code> with ten classes is the same softmax model as Part 1. Give it enough iterations to finish; it converged in 511 here and took about 22 seconds.</p>
+        <div class="prompt-box good"><span class="label">★ Step 3 · train and score</span>from sklearn.linear_model import LogisticRegression
+
+clf = LogisticRegression(max_iter=1000)
+clf.fit(X_tr, y_tr)
+print(clf.n_iter_)                   # [511]
+pred = clf.predict(X_te)
+print((pred == y_test).mean())       # 0.8312</div>
+      </div>
+      <div class="step">
+        <p><strong>Build the confusion table and name the three biggest mistakes.</strong> Zero the diagonal, then sort the remaining 90 cells. The bench's headline cell, T-shirt read as Shirt, is here too, at 115 of 10,000 test images rather than 21 of 1,000.</p>
+        <div class="prompt-box good"><span class="label">★ Step 4 · confusion table</span>from sklearn.metrics import confusion_matrix
+
+cm = confusion_matrix(y_test, pred)
+off = cm.copy()
+np.fill_diagonal(off, 0)
+for k in np.argsort(off, axis=None)[::-1][:3]:
+    i, j = divmod(k, 10)
+    print(f"{CLASSES[i]} read as {CLASSES[j]}: {off[i, j]}")
+# Shirt read as T-shirt/top: 143
+# Coat read as Pullover: 123
+# Shirt read as Pullover: 122
+print(cm[0, 6], cm[2, 4])            # 115 120</div>
+      </div>
+      <div class="step">
+        <p><strong>Per-class error, worst first.</strong> One row of the table at a time. This is the list that goes on the plan, ahead of the overall score.</p>
+        <div class="prompt-box good"><span class="label">★ Step 5 · error table</span>err = 1 - cm.diagonal() / cm.sum(axis=1)
+for c in np.argsort(err)[::-1]:
+    print(f"{CLASSES[c]:12s} {err[c]:6.1%}")
+# Shirt 43.8% · Pullover 27.4% · Coat 26.3% · T-shirt/top 21.4% · Dress 16.1%
+# Sandal 8.7% · Bag 7.3% · Sneaker 6.7% · Ankle boot 6.5% · Trouser 4.6%</div>
+      </div>
+      <div class="step">
+        <p><strong>Write page 3 of the plan.</strong> Floor, score, worst three, the named pairs, and what a wrong bin costs, saved next to the image card. The cost line is constructed and carries no money figure; Corvane's operations team would fill it in.</p>
+        <div class="prompt-box good"><span class="label">★ Step 6 · Corvane's baseline and error table (constructed Corvane example)</span>import json
+
+worst = [CLASSES[c] for c in np.argsort(err)[::-1][:3]]
+pairs = [f"{CLASSES[k // 10]} read as {CLASSES[k % 10]}"
+         for k in np.argsort(off, axis=None)[::-1][:3]]
+plan = {
+    "page": "3 of 6: baseline classifier and error table",
+    "case": "constructed Corvane example; garments stand in for textiles",
+    "data": "20,000 of 60,000 train images (seed 0), all 10,000 test, 28 x 28",
+    "majority_baseline": round(float((y_test == majority).mean()), 3),
+    "model": "LogisticRegression on 784 raw pixels, scaled 0-1",
+    "model_accuracy": round(float((pred == y_test).mean()), 3),
+    "worst_three": worst,
+    "confused_pairs": pairs,
+    "wrong_bin_cost": "constructed: a look-alike textile in the wrong bin "
+                      "contaminates that bale; the error table names which pair",
+}
+json.dump(plan, open("vision_plan_p3.json", "w"), indent=2)
+print(plan["majority_baseline"], plan["model_accuracy"])   # 0.1 0.831
+print(plan["worst_three"])          # ['Shirt', 'Pullover', 'Coat']
+print(plan["confused_pairs"][0])    # Shirt read as T-shirt/top</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>Two sets of numbers, never mixed.</strong> 83.1% is a 28 x 28, 20,000-label build-along number; 75.8% is a 14 x 14, 300-label bench number; 0.842 is the paper's, on all 60,000. Each answers a different question. The thing that carries across all three is the corner of the table: Shirt, Pullover, Coat and T-shirt hold the biggest errors at every size.</p>
+    </div>
+  </section>
+
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 4</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Run the six steps</strong> and confirm every printed number. If your accuracy differs in the third decimal, note your scikit-learn version on the plan beside it.</li>
+      <li><strong>Look at the worst cell.</strong> Pull twenty test images that are Shirts predicted as T-shirt/top and print or plot them. Write one sentence on the plan: is this a model problem, a resolution problem, or a class-definition problem?</li>
+      <li><strong>Halve the labels.</strong> Rerun steps 2 to 5 with 10,000 and then 2,000 training images, same seed. Does the worst class stay worst? Session 4 asks the same question with a 300-label budget.</li>
+      <li><strong>Draft the wrong-bin line for a problem you know</strong>: name the two classes whose confusion would cost the most, and say why, in words and without inventing a price.</li>
+    </ol>
+  </section>
+
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 3 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · On the bench, 33 hand-made features scored 69.4% while the 196 raw pixels they were computed from scored 74.8%. Why?</p>
+      <button class="qopt" type="button">A · Hand-made features always need more training steps</button>
+      <button class="qopt" type="button">B · Each measurement summarises many pixels and throws the rest away; 33 summaries cannot hold more than the 196 pixels did</button>
+      <button class="qopt" type="button">C · The hand-made features were computed on the wrong images</button>
+      <button class="qopt" type="button">D · Softmax regression cannot use features that are not pixels</button>
+      <p class="qwhy">A row profile knows how much ink a row holds, not where in the row it sits. Every summary is a decision about what to discard. Convolution features keep local shape and edged ahead at 75.8%.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="3">
+      <p class="qtext">2 · The biggest cell off the diagonal at bench rung 4 is T-shirt read as Shirt, 21 of 1,000. What does that mean for Corvane?</p>
+      <button class="qopt" type="button">A · Nothing; the overall accuracy of 75.8% already accounts for it</button>
+      <button class="qopt" type="button">B · Shirts are being read as T-shirts just as often, since the table is symmetric</button>
+      <button class="qopt" type="button">C · The model should be thrown away</button>
+      <button class="qopt" type="button">D · Look-alike items are where the errors concentrate; the plan should name that pair and its cost, because the overall score hides it</button>
+      <p class="qwhy">The table is not symmetric, and the four biggest cells all trade among T-shirt, Pullover, Coat and Shirt. For Corvane the equivalent is two textiles that look alike from above and belong in different bins (constructed Corvane example).</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Why is the majority baseline printed before the model's own score?</p>
+      <button class="qopt" type="button">A · It shows how much of the score comes from the class mix rather than the model; on an unbalanced belt the floor itself can look high</button>
+      <button class="qopt" type="button">B · It is the best score any model can reach</button>
+      <button class="qopt" type="button">C · scikit-learn requires it before fitting</button>
+      <button class="qopt" type="button">D · It is always exactly 10%</button>
+      <p class="qwhy">On balanced Fashion-MNIST the floor is about 10%, and 9.8% on the bench's 300 labels. On a real line dominated by one textile it could be most of the headline. A score means nothing until you know the floor.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Fashion-MNIST Table 3 benchmark and human performance</span><span class="note">Xiao, Rasul, Vollgraf (2017), arXiv:1708.07747, Table 3, and the zalandoresearch/fashion-mnist README (human 0.835), read at source</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Bench accuracies, per-class errors and confusion cells</span><span class="note">Computed in the browser and by an independent numpy reference on the 14 x 14 bench sample, compared value by value</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Build-along baseline, accuracy, confused pairs and error table</span><span class="note">Computed with scikit-learn on the public 28 x 28 files, 20,000 training images at seed 0; printed outputs are the real run</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Softmax regression and gradient descent</span><span class="note">Explained in plain words; backpropagation and the training loop are linked to the deep learning sessions, not retaught</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Corvane, its belt mix, its look-alike textiles and the cost of a wrong bin</span><span class="note">Constructed Corvane example; no money figure is given, and the images are garments standing in for textiles</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Every fact on this page, and its verification tier, is recorded in the course's source map.</p>
+  </section>
+
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 3 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Print the floor first</b><span>Majority baseline: 9.8% on the bench, 10% on balanced test. On a real belt it can be most of the score.</span></div>
+      <div class="cheat-item"><b>Sum, softmax, argmax</b><span>One weighted sum per class, turned into probabilities that sum to 1, largest wins.</span></div>
+      <div class="cheat-item"><b>Summaries discard</b><span>33 hand-made features 69.4% vs 196 raw pixels 74.8%. Convolution 75.8%.</span></div>
+      <div class="cheat-item"><b>Labels beat features here</b><span>300 to 2,000 labels: 75.8% to 82.5%. Seed luck alone spans 2.0 points.</span></div>
+      <div class="cheat-item"><b>Read the table by row</b><span>Per-class error ranged 8.6% to 41.6% under one 75.8% accuracy.</span></div>
+      <div class="cheat-item"><b>Name the pair</b><span>T-shirt as Shirt, Pullover as Coat. The plan names look-alikes and their cost.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>You know what the classifier confuses and how far 2,000 labels lift it over 300. Session 4 holds the budget at 300 labels and spends it seven ways on a bench in your browser: random, by uncertainty, by diversity, and on cheap labels. The cheap-labels rung costs 27.1 points, more than any choice of features ever gained.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 3 of 6 · learn-computer-vision-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="02-slide-a-small-window.html">← Prev: Slide a small window</a> &nbsp;·&nbsp; <a href="04-the-label-budget-bench.html">Next: The label budget bench →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>
